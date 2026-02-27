@@ -1,0 +1,15 @@
+[command]
+description = "Review the current git diff and provide feedback"
+
+[command.prompt]
+text = """
+Review the current git diff.
+
+Focus on:
+1. Type safety
+2. React patterns — proper use of hooks
+3. Accessibility — semantic HTML, ARIA attributes
+4. Test coverage
+
+Format: list issues as `file:line — description`. End with a summary.
+"""

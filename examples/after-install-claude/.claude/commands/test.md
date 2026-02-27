@@ -1,0 +1,5 @@
+Run the test suite and report results.
+
+1. Run `npm run test` to execute all tests
+2. If any tests fail, analyze the failure and suggest a fix
+3. If all tests pass, confirm with a summary of test counts

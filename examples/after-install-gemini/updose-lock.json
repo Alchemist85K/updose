@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "packages": {
+    "example-user/react-starter": {
+      "version": "1.0.0",
+      "targets": [
+        "gemini"
+      ],
+      "installedAt": "2026-02-27T12:00:00.000Z",
+      "files": {
+        "gemini": [
+          "GEMINI.md",
+          ".gemini/commands/review.toml",
+          ".gemini/commands/test.toml",
+          ".gemini/skills/react-guide/SKILL.md"
+        ]
+      },
+      "skills": [
+        {
+          "repo": "https://github.com/intellectronica/agent-skills",
+          "skill": "context7"
+        }
+      ]
+    }
+  }
+}

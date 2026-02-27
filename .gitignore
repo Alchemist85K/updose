@@ -14,3 +14,4 @@ dist/
 
 # AI 
 .claude
+!examples/after-install-claude/.claude

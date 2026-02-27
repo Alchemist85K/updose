@@ -1,0 +1,8 @@
+{
+  "name": "react-starter",
+  "author": "example-user",
+  "version": "1.0.0",
+  "description": "React + TypeScript boilerplate for Codex",
+  "targets": ["codex"],
+  "tags": ["react", "typescript", "web"]
+}
