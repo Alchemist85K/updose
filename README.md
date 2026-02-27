@@ -16,8 +16,6 @@ npx updose <command>
 - [Commands](#commands)
   - [add](#updose-add-repo)
   - [search](#updose-search-query)
-  - [outdated](#updose-outdated)
-  - [update](#updose-update-repo)
   - [init](#updose-init)
   - [publish](#updose-publish)
   - [login / logout](#updose-login--updose-logout)
@@ -31,7 +29,6 @@ npx updose <command>
   - [Example: Single-Target Boilerplate (Claude)](#example-single-target-boilerplate-claude)
   - [Example: Multi-Target Boilerplate](#example-multi-target-boilerplate)
 - [Publishing](#publishing)
-- [Lockfile](#lockfile)
 - [License](#license)
 
 ## Quick Start
@@ -43,11 +40,6 @@ npx updose search react
 # Install a boilerplate from a GitHub repository
 npx updose add owner/repo-name
 
-# Check which installed boilerplates have newer versions
-npx updose outdated
-
-# Update all installed boilerplates to the latest version
-npx updose update
 ```
 
 ## Commands
@@ -69,7 +61,6 @@ npx updose add owner/repo-name --dry-run  # Preview what would be installed with
 3. Downloads and installs the target-specific files into your project
 4. If a file already exists in your project, prompts you to **Append**, **Overwrite**, or **Skip**
 5. Installs any skills defined in `skills.json`
-6. Records the installation in `updose-lock.json` for future updates
 
 | Option | Description |
 |--------|-------------|
@@ -93,7 +84,6 @@ my-project/
 │   └── skills/
 │       └── react-guide/
 │           └── SKILL.md
-└── updose-lock.json                   ← tracks installed boilerplates
 ```
 
 See the full example in [`examples/after-install-claude/`](examples/after-install-claude/).
@@ -116,40 +106,6 @@ Results display the boilerplate name, version, author, description, rating, down
 |--------|-------------|
 | `--target <target>` | Filter results by target: `claude`, `codex`, or `gemini`. |
 | `--tag <tag>` | Filter results by tag (e.g., `react`, `typescript`, `web`). |
-
-### `updose outdated`
-
-Check all installed boilerplates for newer versions.
-
-```bash
-npx updose outdated
-```
-
-Reads your `updose-lock.json`, fetches the latest version of each installed boilerplate from GitHub, and displays a comparison table:
-
-```
-Package                Current   Latest
-example-user/react     1.0.0     1.2.0    ← update available
-other-user/node-setup  2.1.0     2.1.0    ✓ up to date
-```
-
-### `updose update [repo]`
-
-Update installed boilerplates to the latest version.
-
-```bash
-npx updose update                        # Update all installed boilerplates
-npx updose update owner/repo-name        # Update a specific boilerplate
-npx updose update --dry-run              # Preview what would change
-npx updose update -y                     # Skip all prompts
-```
-
-The update process re-downloads files for all previously installed targets and re-installs skills. Main docs (e.g., `CLAUDE.md`) will prompt for conflict resolution; other files are overwritten automatically.
-
-| Option | Description |
-|--------|-------------|
-| `-y, --yes` | Skip all interactive prompts. |
-| `--dry-run` | Preview the update without writing any files. |
 
 ### `updose init`
 
@@ -436,47 +392,6 @@ After publishing, anyone can install your boilerplate with:
 ```bash
 npx updose add your-username/my-boilerplate
 ```
-
-## Lockfile
-
-updose tracks installed boilerplates in a `updose-lock.json` file at your project root. This file records:
-
-- Which boilerplates are installed and their versions
-- Which targets were selected
-- Which files were installed
-- Which skills were installed
-
-Example (from [`examples/after-install-claude/updose-lock.json`](examples/after-install-claude/updose-lock.json)):
-
-```json
-{
-  "version": 1,
-  "packages": {
-    "example-user/react-starter": {
-      "version": "1.0.0",
-      "targets": ["claude"],
-      "installedAt": "2026-02-27T12:00:00.000Z",
-      "files": {
-        "claude": [
-          "CLAUDE.md",
-          ".claude/rules/testing.md",
-          ".claude/rules/code-style.md",
-          ".claude/commands/review.md",
-          ".claude/commands/test.md",
-          ".claude/agents/reviewer.md",
-          ".claude/skills/react-guide/SKILL.md"
-        ]
-      },
-      "skills": [
-        { "repo": "https://github.com/intellectronica/agent-skills", "skill": "context7" },
-        { "repo": "https://github.com/microsoft/playwright-cli", "skill": "playwright-cli" }
-      ]
-    }
-  }
-}
-```
-
-This file is used by `updose outdated` and `updose update` to detect and apply updates. You should commit this file to your repository.
 
 ## License
 

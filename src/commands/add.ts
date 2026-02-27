@@ -7,8 +7,6 @@ import {
   fetchSkillsJson,
 } from '../core/github.js';
 import { fileExists, installFile, resolveConflict } from '../core/installer.js';
-import type { SkillLockEntry } from '../core/lockfile.js';
-import { readLockfile, writeLockfile } from '../core/lockfile.js';
 import type { Manifest } from '../core/manifest.js';
 import type { SkillsManifest } from '../core/skills.js';
 import { parseSkills, runSkillInstall } from '../core/skills.js';
@@ -137,7 +135,6 @@ export async function addCommand(
     // 6. Install files
     console.log();
 
-    const installedFiles: string[] = [];
     let installed = 0;
     let skipped = 0;
 
@@ -173,13 +170,11 @@ export async function addCommand(
 
       await installFile(content, destPath, strategy);
       success(`Installed ${localRelPath}`);
-      installedFiles.push(localRelPath);
       installed++;
     }
 
     // 7. Install skills
     let skillsInstalled = 0;
-    const installedSkillEntries: SkillLockEntry[] = [];
 
     const skillsContent = await fetchSkillsJson(repo);
 
@@ -199,10 +194,6 @@ export async function addCommand(
           try {
             runSkillInstall(skill.repo, skill.skill, cwd);
             success(`Installed skill: ${skill.skill} (from ${skill.repo})`);
-            installedSkillEntries.push({
-              repo: skill.repo,
-              skill: skill.skill,
-            });
             skillsInstalled++;
           } catch (err) {
             warn(
@@ -213,47 +204,10 @@ export async function addCommand(
       }
     }
 
-    // 8. Update lockfile
-    if (installedFiles.length > 0 || installedSkillEntries.length > 0) {
-      const lockfile = await readLockfile(cwd);
-      const existing = lockfile.packages[repo];
-      const existingTargets = existing?.targets ?? [];
-      const existingFiles = existing?.files ?? {};
-      const existingSkills = existing?.skills ?? [];
-      const mergedTargets = [...new Set([...existingTargets, target])];
-      const mergedFiles = {
-        ...existingFiles,
-        [target]: installedFiles.map(toPosix),
-      };
-      // Deduplicate skills by repo+skill
-      const allSkills = [...existingSkills, ...installedSkillEntries];
-      const seen = new Set<string>();
-      const mergedSkills: SkillLockEntry[] = [];
-      for (const s of allSkills) {
-        const key = `${s.repo}+${s.skill}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          mergedSkills.push(s);
-        }
-      }
-      lockfile.packages[repo] = {
-        version: manifest.version,
-        targets: mergedTargets,
-        installedAt: new Date().toISOString(),
-        files: mergedFiles,
-        skills: mergedSkills,
-      };
-      await writeLockfile(cwd, lockfile);
-    }
-
     // Summary
     console.log();
     const total = installed + skillsInstalled;
     success(`Done! ${total} file(s) installed, ${skipped} skipped.`);
-    if (total > 0) {
-      info(`Lockfile updated for ${repo}`);
-    }
-
     // Telemetry (best-effort, silent failures)
     if (total > 0) {
       await recordDownload(repo).catch(() => {});

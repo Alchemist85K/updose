@@ -2,7 +2,7 @@ import { resolve, sep } from 'node:path';
 
 /**
  * Converts a native path to POSIX format (forward slashes).
- * Used to store paths in a platform-independent format (e.g., lockfile).
+ * Used to display paths in a platform-independent format.
  */
 export function toPosix(p: string): string {
   return p.replaceAll('\\', '/');
