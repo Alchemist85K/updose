@@ -21,10 +21,11 @@ program
   .action(addCommand);
 
 program
-  .command('search <query>')
+  .command('search [query]')
   .description('Search for boilerplates')
   .option('--target <target>', 'Filter by target (claude, codex, gemini)')
   .option('--tag <tag>', 'Filter by tag')
+  .option('--author <author>', 'Filter by author')
   .action(searchCommand);
 
 program

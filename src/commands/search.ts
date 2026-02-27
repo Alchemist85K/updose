@@ -6,26 +6,36 @@ import { error, info } from '../utils/ui.js';
 interface SearchOptions {
   target?: string | undefined;
   tag?: string | undefined;
+  author?: string | undefined;
 }
 
 export async function searchCommand(
-  query: string,
+  query: string | undefined,
   options: SearchOptions,
 ): Promise<void> {
   try {
+    if (!query && !options.target && !options.tag && !options.author) {
+      error('Please provide a search query or at least one filter (--target, --tag, --author).');
+      process.exitCode = 1;
+      return;
+    }
+
     const filters: SearchFilters = {};
     if (options.target) filters.target = options.target;
     if (options.tag) filters.tag = options.tag;
+    if (options.author) filters.author = options.author;
 
     const results = await searchBoilerplates(query, filters);
 
+    const label = query ? `"${query}"` : 'the given filters';
+
     if (results.length === 0) {
-      info(`No boilerplates found for "${query}"`);
+      info(`No boilerplates found for ${label}`);
       return;
     }
 
     console.log();
-    info(`Found ${results.length} result(s) for "${query}":\n`);
+    info(`Found ${results.length} result(s) for ${label}:\n`);
 
     for (const bp of results) {
       formatResult(bp);

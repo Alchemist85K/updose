@@ -3,23 +3,25 @@ import type { ConflictStrategy } from '../core/installer.js';
 import type { Target } from '../core/targets.js';
 
 /**
- * Prompts the user to select a target when multiple are available.
- * Returns the selected target, or null if cancelled.
+ * Prompts the user to select one or more targets.
+ * Returns the selected targets, or an empty array if cancelled.
  * Auto-selects if only one target exists.
  */
-export async function selectTarget(
+export async function selectTargets(
   targets: readonly Target[],
-): Promise<Target | null> {
-  if (targets.length === 1) return targets[0]!;
+): Promise<Target[]> {
+  if (targets.length === 1) return [targets[0]!];
 
-  const { target } = await prompts({
-    type: 'select',
-    name: 'target',
-    message: 'Select a target to install',
-    choices: targets.map((t) => ({ title: t, value: t })),
+  const { selected } = await prompts({
+    type: 'multiselect',
+    name: 'selected',
+    message: 'Select targets to install',
+    choices: targets.map((t) => ({ title: t, value: t, selected: true })),
+    min: 1,
+    hint: '- Space to select, Enter to confirm',
   });
 
-  return (target as Target) ?? null;
+  return (selected as Target[]) ?? [];
 }
 
 /**

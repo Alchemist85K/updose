@@ -18,7 +18,7 @@ import {
   shouldSkipFile,
 } from '../core/targets.js';
 import { ensureWithinDir, toPosix } from '../utils/path.js';
-import { selectTarget } from '../utils/prompts.js';
+import { selectTargets } from '../utils/prompts.js';
 import { createSpinner, error, info, success, warn } from '../utils/ui.js';
 
 interface AddOptions {
@@ -48,18 +48,18 @@ export async function addCommand(
       throw err;
     }
 
-    // 2. Select target
-    let target: Target | null;
+    // 2. Select targets
+    let selectedTargets: Target[];
     if (skipPrompts) {
-      target = manifest.targets[0]!;
+      selectedTargets = [...manifest.targets];
       if (manifest.targets.length > 1) {
-        info(`Auto-selected target: ${target}`);
+        info(`Auto-selected targets: ${selectedTargets.join(', ')}`);
       }
     } else {
-      target = await selectTarget(manifest.targets);
+      selectedTargets = await selectTargets(manifest.targets);
     }
 
-    if (!target) {
+    if (selectedTargets.length === 0) {
       info('Installation cancelled.');
       return;
     }
@@ -75,19 +75,25 @@ export async function addCommand(
       throw err;
     }
 
-    // 4. Filter files for selected target
-    const sourceDir = getSourceDir(target);
-    const prefix = `${sourceDir}/`;
-    const targetFiles = tree.filter((entry) => {
-      if (!entry.path.startsWith(prefix)) return false;
-      const relativePath = entry.path.slice(prefix.length);
-      if (!relativePath) return false;
-      if (shouldSkipFile(relativePath)) return false;
-      return true;
-    });
+    // 4. Filter files for selected targets
+    const filesByTarget = new Map<Target, { entry: TreeEntry; prefix: string }[]>();
+    for (const target of selectedTargets) {
+      const sourceDir = getSourceDir(target);
+      const prefix = `${sourceDir}/`;
+      const files = tree.filter((entry) => {
+        if (!entry.path.startsWith(prefix)) return false;
+        const relativePath = entry.path.slice(prefix.length);
+        if (!relativePath) return false;
+        if (shouldSkipFile(relativePath)) return false;
+        return true;
+      });
+      if (files.length > 0) {
+        filesByTarget.set(target, files.map((entry) => ({ entry, prefix })));
+      }
+    }
 
-    if (targetFiles.length === 0) {
-      warn(`No files found for target "${target}" in ${repo}`);
+    if (filesByTarget.size === 0) {
+      warn(`No files found for selected targets in ${repo}`);
       return;
     }
 
@@ -96,14 +102,17 @@ export async function addCommand(
       console.log();
       info('Dry run — the following files would be installed:\n');
 
-      const dryRunFiles: string[] = [];
+      let dryRunCount = 0;
 
-      for (const entry of targetFiles) {
-        const relativePath = entry.path.slice(prefix.length);
-        const localRelPath = mapToLocalPath(target, relativePath);
-        ensureWithinDir(cwd, localRelPath);
-        console.log(`  ${entry.path} → ${toPosix(localRelPath)}`);
-        dryRunFiles.push(localRelPath);
+      for (const [target, files] of filesByTarget) {
+        console.log(`  [${target}]`);
+        for (const { entry, prefix } of files) {
+          const relativePath = entry.path.slice(prefix.length);
+          const localRelPath = mapToLocalPath(target, relativePath);
+          ensureWithinDir(cwd, localRelPath);
+          console.log(`    ${entry.path} → ${toPosix(localRelPath)}`);
+          dryRunCount++;
+        }
       }
 
       // Check skills
@@ -127,7 +136,7 @@ export async function addCommand(
 
       console.log();
       info(
-        `Dry run complete. ${dryRunFiles.length} file(s) would be installed.`,
+        `Dry run complete. ${dryRunCount} file(s) would be installed.`,
       );
       return;
     }
@@ -138,39 +147,45 @@ export async function addCommand(
     let installed = 0;
     let skipped = 0;
 
-    for (const entry of targetFiles) {
-      const relativePath = entry.path.slice(prefix.length);
-      const localRelPath = mapToLocalPath(target, relativePath);
-      const destPath = ensureWithinDir(cwd, localRelPath);
-
-      // Determine conflict strategy
-      let strategy: 'overwrite' | 'append' | 'skip' = 'overwrite';
-      const exists = await fileExists(destPath);
-      if (exists) {
-        strategy = await resolveConflict(
-          localRelPath,
-          isMainDoc(target, relativePath),
-          skipPrompts,
-        );
+    for (const [target, files] of filesByTarget) {
+      if (filesByTarget.size > 1) {
+        info(`Installing ${target} files...\n`);
       }
 
-      if (strategy === 'skip') {
-        warn(`Skipped ${localRelPath}`);
-        skipped++;
-        continue;
-      }
+      for (const { entry, prefix } of files) {
+        const relativePath = entry.path.slice(prefix.length);
+        const localRelPath = mapToLocalPath(target, relativePath);
+        const destPath = ensureWithinDir(cwd, localRelPath);
 
-      // Fetch file content
-      const content = await fetchFile(repo, entry.path);
-      if (content === null) {
-        warn(`Could not fetch ${entry.path} — skipped`);
-        skipped++;
-        continue;
-      }
+        // Determine conflict strategy
+        let strategy: 'overwrite' | 'append' | 'skip' = 'overwrite';
+        const exists = await fileExists(destPath);
+        if (exists) {
+          strategy = await resolveConflict(
+            localRelPath,
+            isMainDoc(target, relativePath),
+            skipPrompts,
+          );
+        }
 
-      await installFile(content, destPath, strategy);
-      success(`Installed ${localRelPath}`);
-      installed++;
+        if (strategy === 'skip') {
+          warn(`Skipped ${localRelPath}`);
+          skipped++;
+          continue;
+        }
+
+        // Fetch file content
+        const content = await fetchFile(repo, entry.path);
+        if (content === null) {
+          warn(`Could not fetch ${entry.path} — skipped`);
+          skipped++;
+          continue;
+        }
+
+        await installFile(content, destPath, strategy);
+        success(`Installed ${localRelPath}`);
+        installed++;
+      }
     }
 
     // 7. Install skills

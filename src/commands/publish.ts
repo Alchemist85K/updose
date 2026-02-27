@@ -4,11 +4,13 @@ import { join } from 'node:path';
 import chalk from 'chalk';
 import { registerBoilerplate } from '../api/client.js';
 import { login } from '../auth/github-oauth.js';
-import { MANIFEST_FILENAME } from '../constants.js';
+import { GITHUB_API_URL, MANIFEST_FILENAME, USER_AGENT } from '../constants.js';
 import type { Manifest } from '../core/manifest.js';
 import { parseManifest } from '../core/manifest.js';
 import { confirm } from '../utils/prompts.js';
 import { createSpinner, info, error as logError } from '../utils/ui.js';
+
+const FETCH_TIMEOUT_MS = 10_000;
 
 export async function publishCommand(): Promise<void> {
   const cwd = process.cwd();
@@ -58,6 +60,39 @@ export async function publishCommand(): Promise<void> {
     token = await login();
   } catch (err) {
     logError((err as Error).message);
+    process.exitCode = 1;
+    return;
+  }
+
+  // Step 3.5: Verify repo exists on GitHub
+  let repoRes: Response;
+  try {
+    repoRes = await fetch(`${GITHUB_API_URL}/repos/${repo}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'User-Agent': USER_AGENT,
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch {
+    logError(
+      'Failed to verify repository on GitHub. Check your network connection.',
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  if (repoRes.status === 404) {
+    logError(
+      `Repository not found on GitHub: ${repo}\nMake sure you have pushed your code to GitHub.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  if (!repoRes.ok) {
+    logError(
+      `Failed to verify repository: ${repoRes.status} ${repoRes.statusText}`,
+    );
     process.exitCode = 1;
     return;
   }

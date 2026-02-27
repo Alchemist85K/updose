@@ -23,15 +23,18 @@ export interface BoilerplateRow {
 export interface SearchFilters {
   target?: string | undefined;
   tag?: string | undefined;
+  author?: string | undefined;
 }
 
 export async function searchBoilerplates(
-  query: string,
+  query?: string | undefined,
   filters?: SearchFilters | undefined,
 ): Promise<BoilerplateRow[]> {
-  const params = new URLSearchParams({ q: query });
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
   if (filters?.target) params.set('target', filters.target);
   if (filters?.tag) params.set('tag', filters.tag);
+  if (filters?.author) params.set('author', filters.author);
 
   const res = await fetch(`${API_BASE_URL}/search?${params.toString()}`, {
     headers: { 'User-Agent': USER_AGENT },

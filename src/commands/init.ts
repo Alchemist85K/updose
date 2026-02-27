@@ -229,8 +229,9 @@ export async function initCommand(): Promise<void> {
       `  1. Edit your boilerplate files in ${targets.map((t) => `${t}/`).join(', ')}`,
     );
     console.log('  2. Push to GitHub');
+    console.log('  3. Publish with: npx updose publish');
     console.log(
-      `  3. Others can install with: npx updose add ${author}/${name}`,
+      `  4. Others can install with: npx updose add ${author}/${name}`,
     );
   } catch (err) {
     error(
