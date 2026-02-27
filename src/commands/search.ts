@@ -15,7 +15,9 @@ export async function searchCommand(
 ): Promise<void> {
   try {
     if (!query && !options.target && !options.tag && !options.author) {
-      error('Please provide a search query or at least one filter (--target, --tag, --author).');
+      error(
+        'Please provide a search query or at least one filter (--target, --tag, --author).',
+      );
       process.exitCode = 1;
       return;
     }

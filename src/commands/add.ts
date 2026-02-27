@@ -76,7 +76,10 @@ export async function addCommand(
     }
 
     // 4. Filter files for selected targets
-    const filesByTarget = new Map<Target, { entry: TreeEntry; prefix: string }[]>();
+    const filesByTarget = new Map<
+      Target,
+      { entry: TreeEntry; prefix: string }[]
+    >();
     for (const target of selectedTargets) {
       const sourceDir = getSourceDir(target);
       const prefix = `${sourceDir}/`;
@@ -88,7 +91,10 @@ export async function addCommand(
         return true;
       });
       if (files.length > 0) {
-        filesByTarget.set(target, files.map((entry) => ({ entry, prefix })));
+        filesByTarget.set(
+          target,
+          files.map((entry) => ({ entry, prefix })),
+        );
       }
     }
 
@@ -135,9 +141,7 @@ export async function addCommand(
       }
 
       console.log();
-      info(
-        `Dry run complete. ${dryRunCount} file(s) would be installed.`,
-      );
+      info(`Dry run complete. ${dryRunCount} file(s) would be installed.`);
       return;
     }
 
