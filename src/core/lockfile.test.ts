@@ -32,9 +32,10 @@ describe('readLockfile', () => {
       packages: {
         'user/repo': {
           version: '1.0.0',
-          target: 'claude',
+          targets: ['claude'],
           installedAt: '2025-01-01T00:00:00.000Z',
-          files: ['CLAUDE.md', '.claude/commands/review.md'],
+          files: { claude: ['CLAUDE.md', '.claude/commands/review.md'] },
+          skills: [{ repo: 'user/skills-repo', skill: 'review' }],
         },
       },
     };
@@ -42,6 +43,24 @@ describe('readLockfile', () => {
 
     const result = await readLockfile(tempDir);
     expect(result.packages['user/repo']).toEqual(data.packages['user/repo']);
+  });
+
+  it('defaults skills to empty array when missing', async () => {
+    const data = {
+      version: 1,
+      packages: {
+        'user/repo': {
+          version: '1.0.0',
+          targets: ['claude'],
+          installedAt: '2025-01-01T00:00:00.000Z',
+          files: { claude: ['CLAUDE.md'] },
+        },
+      },
+    };
+    await writeFile(join(tempDir, 'updose-lock.json'), JSON.stringify(data));
+
+    const result = await readLockfile(tempDir);
+    expect(result.packages['user/repo']!.skills).toEqual([]);
   });
 
   it('skips invalid entries without warning', async () => {
@@ -53,13 +72,13 @@ describe('readLockfile', () => {
       packages: {
         'valid/repo': {
           version: '1.0.0',
-          target: 'claude',
+          targets: ['claude'],
           installedAt: '2025-01-01T00:00:00.000Z',
-          files: ['CLAUDE.md'],
+          files: { claude: ['CLAUDE.md'] },
         },
         'invalid/repo': {
           version: 123,
-          target: 'claude',
+          targets: ['claude'],
         },
       },
     };
@@ -98,9 +117,27 @@ describe('readLockfile', () => {
       packages: {
         'user/repo': {
           version: '1.0.0',
-          target: 'invalid-target',
+          targets: ['invalid-target'],
           installedAt: '2025-01-01T00:00:00.000Z',
-          files: [],
+          files: {},
+        },
+      },
+    };
+    await writeFile(join(tempDir, 'updose-lock.json'), JSON.stringify(data));
+
+    const result = await readLockfile(tempDir);
+    expect(result.packages['user/repo']).toBeUndefined();
+  });
+
+  it('rejects entry with empty targets array', async () => {
+    const data = {
+      version: 1,
+      packages: {
+        'user/repo': {
+          version: '1.0.0',
+          targets: [],
+          installedAt: '2025-01-01T00:00:00.000Z',
+          files: {},
         },
       },
     };
@@ -116,9 +153,9 @@ describe('readLockfile', () => {
       packages: {
         'user/repo': {
           version: '1.0.0',
-          target: 'claude',
+          targets: ['claude'],
           installedAt: '2025-01-01T00:00:00.000Z',
-          files: [123, 456],
+          files: { claude: [123, 456] },
         },
       },
     };
@@ -136,9 +173,10 @@ describe('writeLockfile', () => {
       packages: {
         'user/repo': {
           version: '1.0.0',
-          target: 'claude',
+          targets: ['claude'],
           installedAt: '2025-01-01T00:00:00.000Z',
-          files: ['CLAUDE.md'],
+          files: { claude: ['CLAUDE.md'] },
+          skills: [],
         },
       },
     };
@@ -157,15 +195,17 @@ describe('writeLockfile', () => {
       packages: {
         'z-user/repo': {
           version: '1.0.0',
-          target: 'claude',
+          targets: ['claude'],
           installedAt: '2025-01-01T00:00:00.000Z',
-          files: [],
+          files: {},
+          skills: [],
         },
         'a-user/repo': {
           version: '2.0.0',
-          target: 'codex',
+          targets: ['codex'],
           installedAt: '2025-01-01T00:00:00.000Z',
-          files: [],
+          files: {},
+          skills: [],
         },
       },
     };
@@ -186,19 +226,18 @@ describe('writeLockfile', () => {
     expect(content.endsWith('\n')).toBe(true);
   });
 
-  it('normalizes backslash paths to POSIX in files array', async () => {
+  it('normalizes backslash paths to POSIX in files record', async () => {
     const data: Lockfile = {
       version: 1,
       packages: {
         'user/repo': {
           version: '1.0.0',
-          target: 'claude',
+          targets: ['claude'],
           installedAt: '2025-01-01T00:00:00.000Z',
-          files: [
-            '.claude\\commands\\review.md',
-            '.claude\\skills\\lint\\SKILL.md',
-            'CLAUDE.md',
-          ],
+          files: {
+            claude: ['.claude\\commands\\review.md', 'CLAUDE.md'],
+          },
+          skills: [{ repo: 'user/skills-repo', skill: 'lint' }],
         },
       },
     };
@@ -207,10 +246,12 @@ describe('writeLockfile', () => {
 
     const content = await readFile(join(tempDir, 'updose-lock.json'), 'utf-8');
     const parsed = JSON.parse(content);
-    expect(parsed.packages['user/repo'].files).toEqual([
+    expect(parsed.packages['user/repo'].files.claude).toEqual([
       '.claude/commands/review.md',
-      '.claude/skills/lint/SKILL.md',
       'CLAUDE.md',
+    ]);
+    expect(parsed.packages['user/repo'].skills).toEqual([
+      { repo: 'user/skills-repo', skill: 'lint' },
     ]);
   });
 });

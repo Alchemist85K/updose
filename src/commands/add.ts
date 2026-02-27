@@ -7,14 +7,14 @@ import {
   fetchSkillsJson,
 } from '../core/github.js';
 import { fileExists, installFile, resolveConflict } from '../core/installer.js';
+import type { SkillLockEntry } from '../core/lockfile.js';
 import { readLockfile, writeLockfile } from '../core/lockfile.js';
 import type { Manifest } from '../core/manifest.js';
 import type { SkillsManifest } from '../core/skills.js';
-import { getSkillDir, installSkill, parseSkills } from '../core/skills.js';
+import { parseSkills, runSkillInstall } from '../core/skills.js';
 import type { Target } from '../core/targets.js';
 import {
   getSourceDir,
-  hasSkillsSupport,
   isMainDoc,
   mapToLocalPath,
   shouldSkipFile,
@@ -109,25 +109,21 @@ export async function addCommand(
       }
 
       // Check skills
-      if (hasSkillsSupport(target)) {
-        const skillsContent = await fetchSkillsJson(repo);
-        if (skillsContent !== null) {
-          try {
-            const skillsManifest = parseSkills(
-              JSON.parse(skillsContent) as unknown,
-            );
-            if (skillsManifest.skills.length > 0) {
-              console.log();
-              info('Skills that would be installed:\n');
-              for (const skill of skillsManifest.skills) {
-                const skillDir = getSkillDir(target, skill.name);
-                console.log(`  ${skill.name} → ${toPosix(skillDir)}/`);
-                dryRunFiles.push(skillDir);
-              }
+      const skillsContent = await fetchSkillsJson(repo);
+      if (skillsContent !== null) {
+        try {
+          const skillsManifest = parseSkills(
+            JSON.parse(skillsContent) as unknown,
+          );
+          if (skillsManifest.skills.length > 0) {
+            console.log();
+            info('Skills that would be installed:\n');
+            for (const skill of skillsManifest.skills) {
+              console.log(`  ${skill.skill} (from ${skill.repo})`);
             }
-          } catch {
-            warn('Invalid skills.json — skills would be skipped');
           }
+        } catch {
+          warn('Invalid skills.json — skills would be skipped');
         }
       }
 
@@ -183,57 +179,69 @@ export async function addCommand(
 
     // 7. Install skills
     let skillsInstalled = 0;
+    const installedSkillEntries: SkillLockEntry[] = [];
 
-    if (hasSkillsSupport(target)) {
-      const skillsContent = await fetchSkillsJson(repo);
+    const skillsContent = await fetchSkillsJson(repo);
 
-      if (skillsContent !== null) {
-        let skillsManifest: SkillsManifest | undefined;
-        try {
-          skillsManifest = parseSkills(JSON.parse(skillsContent) as unknown);
-        } catch {
-          warn('Invalid skills.json — skills installation skipped');
-        }
+    if (skillsContent !== null) {
+      let skillsManifest: SkillsManifest | undefined;
+      try {
+        skillsManifest = parseSkills(JSON.parse(skillsContent) as unknown);
+      } catch {
+        warn('Invalid skills.json — skills installation skipped');
+      }
 
-        if (skillsManifest && skillsManifest.skills.length > 0) {
-          console.log();
-          info('Installing skills...\n');
+      if (skillsManifest && skillsManifest.skills.length > 0) {
+        console.log();
+        info('Installing skills...\n');
 
-          for (const skill of skillsManifest.skills) {
-            try {
-              const skillFiles = await installSkill(
-                repo,
-                skill,
-                target,
-                cwd,
-                skipPrompts,
-                tree,
-              );
-              if (skillFiles.length > 0) {
-                success(`Installed skill: ${skill.name}`);
-                installedFiles.push(...skillFiles);
-                skillsInstalled++;
-              } else {
-                warn(`Skipped skill: ${skill.name}`);
-              }
-            } catch (err) {
-              warn(
-                `Failed to install skill "${skill.name}": ${err instanceof Error ? err.message : String(err)}`,
-              );
-            }
+        for (const skill of skillsManifest.skills) {
+          try {
+            runSkillInstall(skill.repo, skill.skill, cwd);
+            success(`Installed skill: ${skill.skill} (from ${skill.repo})`);
+            installedSkillEntries.push({
+              repo: skill.repo,
+              skill: skill.skill,
+            });
+            skillsInstalled++;
+          } catch (err) {
+            warn(
+              `Failed to install skill "${skill.skill}": ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }
       }
     }
 
     // 8. Update lockfile
-    if (installedFiles.length > 0) {
+    if (installedFiles.length > 0 || installedSkillEntries.length > 0) {
       const lockfile = await readLockfile(cwd);
+      const existing = lockfile.packages[repo];
+      const existingTargets = existing?.targets ?? [];
+      const existingFiles = existing?.files ?? {};
+      const existingSkills = existing?.skills ?? [];
+      const mergedTargets = [...new Set([...existingTargets, target])];
+      const mergedFiles = {
+        ...existingFiles,
+        [target]: installedFiles.map(toPosix),
+      };
+      // Deduplicate skills by repo+skill
+      const allSkills = [...existingSkills, ...installedSkillEntries];
+      const seen = new Set<string>();
+      const mergedSkills: SkillLockEntry[] = [];
+      for (const s of allSkills) {
+        const key = `${s.repo}+${s.skill}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          mergedSkills.push(s);
+        }
+      }
       lockfile.packages[repo] = {
         version: manifest.version,
-        target,
+        targets: mergedTargets,
         installedAt: new Date().toISOString(),
-        files: installedFiles.map(toPosix),
+        files: mergedFiles,
+        skills: mergedSkills,
       };
       await writeLockfile(cwd, lockfile);
     }

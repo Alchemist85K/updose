@@ -1,6 +1,16 @@
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { getSkillDir, getSkillEntryPath, parseSkills } from './skills.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  getSkillDir,
+  getSkillEntryPath,
+  parseSkills,
+  runSkillInstall,
+} from './skills.js';
+
+vi.mock('node:child_process', () => ({
+  execFileSync: vi.fn(),
+}));
 
 describe('getSkillDir', () => {
   it('returns skill directory for claude', () => {
@@ -46,15 +56,14 @@ describe('parseSkills', () => {
   it('parses a valid skills manifest', () => {
     const result = parseSkills({
       skills: [
-        { name: 'review', description: 'Code review', path: 'skills/review' },
-        { name: 'lint', description: '', path: 'skills/lint' },
+        { repo: 'user/skill-repo', skill: 'review' },
+        { repo: 'user/skill-repo', skill: 'lint' },
       ],
     });
     expect(result.skills).toHaveLength(2);
     expect(result.skills[0]).toEqual({
-      name: 'review',
-      description: 'Code review',
-      path: 'skills/review',
+      repo: 'user/skill-repo',
+      skill: 'review',
     });
   });
 
@@ -63,46 +72,50 @@ describe('parseSkills', () => {
     expect(result.skills).toEqual([]);
   });
 
-  it('defaults description to empty string when missing', () => {
+  it('trims whitespace from repo and skill', () => {
     const result = parseSkills({
-      skills: [{ name: 'review', path: 'skills/review' }],
+      skills: [{ repo: '  user/repo  ', skill: '  review  ' }],
     });
-    expect(result.skills[0]!.description).toBe('');
+    expect(result.skills[0]).toEqual({
+      repo: 'user/repo',
+      skill: 'review',
+    });
   });
 
-  it('skips entries missing name', () => {
+  it('skips entries missing repo', () => {
     const result = parseSkills({
-      skills: [{ description: 'no name', path: 'skills/x' }],
+      skills: [{ skill: 'review' }],
     });
     expect(result.skills).toEqual([]);
   });
 
-  it('skips entries missing path', () => {
+  it('skips entries missing skill', () => {
     const result = parseSkills({
-      skills: [{ name: 'review', description: 'no path' }],
+      skills: [{ repo: 'user/repo' }],
     });
     expect(result.skills).toEqual([]);
   });
 
-  it('skips entries with invalid name characters', () => {
+  it('skips entries with empty repo after trim', () => {
     const result = parseSkills({
-      skills: [
-        { name: 'valid-name', path: 'a' },
-        { name: 'has spaces', path: 'b' },
-        { name: 'has/slash', path: 'c' },
-        { name: 'has.dot', path: 'd' },
-      ],
+      skills: [{ repo: '   ', skill: 'review' }],
     });
-    expect(result.skills).toHaveLength(1);
-    expect(result.skills[0]!.name).toBe('valid-name');
+    expect(result.skills).toEqual([]);
+  });
+
+  it('skips entries with empty skill after trim', () => {
+    const result = parseSkills({
+      skills: [{ repo: 'user/repo', skill: '   ' }],
+    });
+    expect(result.skills).toEqual([]);
   });
 
   it('skips non-object entries', () => {
     const result = parseSkills({
-      skills: ['string', 42, null, { name: 'ok', path: 'p' }],
+      skills: ['string', 42, null, { repo: 'user/repo', skill: 'ok' }],
     });
     expect(result.skills).toHaveLength(1);
-    expect(result.skills[0]!.name).toBe('ok');
+    expect(result.skills[0]!.skill).toBe('ok');
   });
 
   it('throws on null input', () => {
@@ -121,5 +134,31 @@ describe('parseSkills', () => {
 
   it('throws when skills key is missing', () => {
     expect(() => parseSkills({})).toThrow('"skills" must be an array');
+  });
+});
+
+describe('runSkillInstall', () => {
+  it('calls execFileSync with correct arguments', () => {
+    const mockExecFileSync = vi.mocked(execFileSync);
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+
+    runSkillInstall('user/skill-repo', 'review', '/path/to/project');
+
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'npx',
+      ['skills', 'add', 'user/skill-repo', '--skill', 'review'],
+      { cwd: '/path/to/project', stdio: 'inherit' },
+    );
+  });
+
+  it('propagates errors from execFileSync', () => {
+    const mockExecFileSync = vi.mocked(execFileSync);
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error('npx not found');
+    });
+
+    expect(() => runSkillInstall('user/repo', 'test', '/tmp')).toThrow(
+      'npx not found',
+    );
   });
 });

@@ -6,14 +6,17 @@ import {
   fetchSkillsJson,
 } from '../core/github.js';
 import { fileExists, installFile, resolveConflict } from '../core/installer.js';
-import type { Lockfile, LockfileEntry } from '../core/lockfile.js';
+import type {
+  Lockfile,
+  LockfileEntry,
+  SkillLockEntry,
+} from '../core/lockfile.js';
 import { readLockfile, writeLockfile } from '../core/lockfile.js';
 import type { Manifest } from '../core/manifest.js';
 import type { SkillsManifest } from '../core/skills.js';
-import { getSkillDir, installSkill, parseSkills } from '../core/skills.js';
+import { parseSkills, runSkillInstall } from '../core/skills.js';
 import {
   getSourceDir,
-  hasSkillsSupport,
   isMainDoc,
   mapToLocalPath,
   shouldSkipFile,
@@ -144,7 +147,6 @@ async function updatePackage(
   checkSpinner.success(`${repo}: v${entry.version} → v${manifest.version}`);
 
   // 3. Fetch repo tree
-  const target = entry.target;
   const treeSpinner = createSpinner(`Fetching files for ${repo}...`).start();
   let tree: TreeEntry[];
   try {
@@ -156,110 +158,101 @@ async function updatePackage(
     return null;
   }
 
-  // 4. Filter files for target
-  const sourceDir = getSourceDir(target);
-  const prefix = `${sourceDir}/`;
-  const targetFiles = tree.filter((e) => {
-    if (!e.path.startsWith(prefix)) return false;
-    const relativePath = e.path.slice(prefix.length);
-    if (!relativePath) return false;
-    if (shouldSkipFile(relativePath)) return false;
-    return true;
-  });
+  let totalInstalled = 0;
+  let totalSkipped = 0;
+  const updatedFiles: Record<string, string[]> = { ...entry.files };
 
-  if (targetFiles.length === 0) {
-    warn(`No files found for target "${target}" in ${repo}`);
-    return { updated: false, installed: 0, skipped: 0 };
-  }
+  for (const target of entry.targets) {
+    // 4. Filter files for target
+    const sourceDir = getSourceDir(target);
+    const prefix = `${sourceDir}/`;
+    const targetFiles = tree.filter((e) => {
+      if (!e.path.startsWith(prefix)) return false;
+      const relativePath = e.path.slice(prefix.length);
+      if (!relativePath) return false;
+      if (shouldSkipFile(relativePath)) return false;
+      return true;
+    });
 
-  // 5. Dry run
-  if (dryRun) {
+    if (targetFiles.length === 0) {
+      warn(`No files found for target "${target}" in ${repo}`);
+      continue;
+    }
+
+    // 5. Dry run
+    if (dryRun) {
+      console.log();
+      info(`Files that would be updated for ${repo} [${target}]:\n`);
+
+      let dryRunCount = 0;
+      for (const file of targetFiles) {
+        const relativePath = file.path.slice(prefix.length);
+        const localRelPath = mapToLocalPath(target, relativePath);
+        ensureWithinDir(cwd, localRelPath);
+        console.log(`  ${file.path} → ${toPosix(localRelPath)}`);
+        dryRunCount++;
+      }
+
+      console.log();
+      info(`${dryRunCount} file(s) would be updated for [${target}].`);
+      totalInstalled += dryRunCount;
+      continue;
+    }
+
+    // 6. Install files
     console.log();
-    info(`Files that would be updated for ${repo}:\n`);
+    const installedFiles: string[] = [];
+    let installed = 0;
+    let skipped = 0;
 
-    let dryRunCount = 0;
     for (const file of targetFiles) {
       const relativePath = file.path.slice(prefix.length);
       const localRelPath = mapToLocalPath(target, relativePath);
-      ensureWithinDir(cwd, localRelPath);
-      console.log(`  ${file.path} → ${toPosix(localRelPath)}`);
-      dryRunCount++;
-    }
+      const destPath = ensureWithinDir(cwd, localRelPath);
 
-    if (hasSkillsSupport(target)) {
-      const skillsContent = await fetchSkillsJson(repo);
-      if (skillsContent !== null) {
-        try {
-          const skillsManifest = parseSkills(
-            JSON.parse(skillsContent) as unknown,
-          );
-          if (skillsManifest.skills.length > 0) {
-            console.log();
-            info('Skills that would be updated:\n');
-            for (const skill of skillsManifest.skills) {
-              console.log(
-                `  ${skill.name} → ${toPosix(getSkillDir(target, skill.name))}/`,
-              );
-              dryRunCount++;
-            }
-          }
-        } catch {
-          warn('Invalid skills.json — skills would be skipped');
-        }
+      let strategy: 'overwrite' | 'append' | 'skip' = 'overwrite';
+      const mainDoc = isMainDoc(target, relativePath);
+      const exists = await fileExists(destPath);
+
+      if (exists && mainDoc) {
+        strategy = await resolveConflict(localRelPath, true, skipPrompts);
       }
+
+      if (strategy === 'skip') {
+        warn(`Skipped ${localRelPath}`);
+        skipped++;
+        continue;
+      }
+
+      const content = await fetchFile(repo, file.path);
+      if (content === null) {
+        warn(`Could not fetch ${file.path} — skipped`);
+        skipped++;
+        continue;
+      }
+
+      await installFile(content, destPath, strategy);
+      success(`Updated ${localRelPath}`);
+      installedFiles.push(localRelPath);
+      installed++;
     }
 
-    console.log();
-    info(`${dryRunCount} file(s) would be updated.`);
-    return { updated: true, installed: dryRunCount, skipped: 0 };
+    // Track installed files per target
+    if (installedFiles.length > 0) {
+      const existingFiles = updatedFiles[target] ?? [];
+      const posixFiles = installedFiles.map(toPosix);
+      updatedFiles[target] = [...new Set([...existingFiles, ...posixFiles])];
+    }
+
+    totalInstalled += installed;
+    totalSkipped += skipped;
   }
 
-  // 6. Install files
-  console.log();
-  const installedFiles: string[] = [];
-  let installed = 0;
-  let skipped = 0;
+  // 7. Reinstall skills (outside per-target loop — target-independent)
+  let totalSkillsInstalled = 0;
+  const updatedSkills: SkillLockEntry[] = [...entry.skills];
 
-  for (const file of targetFiles) {
-    const relativePath = file.path.slice(prefix.length);
-    const localRelPath = mapToLocalPath(target, relativePath);
-    const destPath = ensureWithinDir(cwd, localRelPath);
-
-    // Update conflict strategy:
-    // - Main docs: prompt (or append with --yes)
-    // - Normal files: overwrite directly
-    let strategy: 'overwrite' | 'append' | 'skip' = 'overwrite';
-    const mainDoc = isMainDoc(target, relativePath);
-    const exists = await fileExists(destPath);
-
-    if (exists && mainDoc) {
-      strategy = await resolveConflict(localRelPath, true, skipPrompts);
-    }
-    // Normal files: always overwrite during update (no prompt)
-
-    if (strategy === 'skip') {
-      warn(`Skipped ${localRelPath}`);
-      skipped++;
-      continue;
-    }
-
-    const content = await fetchFile(repo, file.path);
-    if (content === null) {
-      warn(`Could not fetch ${file.path} — skipped`);
-      skipped++;
-      continue;
-    }
-
-    await installFile(content, destPath, strategy);
-    success(`Updated ${localRelPath}`);
-    installedFiles.push(localRelPath);
-    installed++;
-  }
-
-  // 7. Reinstall skills
-  let skillsInstalled = 0;
-
-  if (hasSkillsSupport(target)) {
+  if (!dryRun) {
     const skillsContent = await fetchSkillsJson(repo);
 
     if (skillsContent !== null) {
@@ -276,44 +269,64 @@ async function updatePackage(
 
         for (const skill of skillsManifest.skills) {
           try {
-            const skillFiles = await installSkill(
-              repo,
-              skill,
-              target,
-              cwd,
-              true,
-              tree,
-            );
-            if (skillFiles.length > 0) {
-              success(`Updated skill: ${skill.name}`);
-              installedFiles.push(...skillFiles);
-              skillsInstalled++;
-            }
+            runSkillInstall(skill.repo, skill.skill, cwd);
+            success(`Updated skill: ${skill.skill} (from ${skill.repo})`);
+            updatedSkills.push({ repo: skill.repo, skill: skill.skill });
+            totalSkillsInstalled++;
           } catch (err) {
             warn(
-              `Failed to update skill "${skill.name}": ${err instanceof Error ? err.message : String(err)}`,
+              `Failed to update skill "${skill.skill}": ${err instanceof Error ? err.message : String(err)}`,
             );
           }
         }
       }
     }
+  } else {
+    // Dry run for skills
+    const skillsContent = await fetchSkillsJson(repo);
+    if (skillsContent !== null) {
+      try {
+        const skillsManifest = parseSkills(
+          JSON.parse(skillsContent) as unknown,
+        );
+        if (skillsManifest.skills.length > 0) {
+          console.log();
+          info('Skills that would be updated:\n');
+          for (const skill of skillsManifest.skills) {
+            console.log(`  ${skill.skill} (from ${skill.repo})`);
+            totalSkillsInstalled++;
+          }
+        }
+      } catch {
+        warn('Invalid skills.json — skills would be skipped');
+      }
+    }
   }
 
   // 8. Update lockfile entry
-  if (installedFiles.length > 0) {
-    const existingFiles = lockfile.packages[repo]?.files ?? [];
-    const posixFiles = installedFiles.map(toPosix);
-    const allFiles = [...new Set([...existingFiles, ...posixFiles])];
+  if ((totalInstalled > 0 || totalSkillsInstalled > 0) && !dryRun) {
+    // Deduplicate skills by repo+skill
+    const seen = new Set<string>();
+    const mergedSkills: SkillLockEntry[] = [];
+    for (const s of updatedSkills) {
+      const key = `${s.repo}+${s.skill}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        mergedSkills.push(s);
+      }
+    }
+
     lockfile.packages[repo] = {
       version: manifest.version,
-      target,
+      targets: entry.targets,
       installedAt: new Date().toISOString(),
-      files: allFiles,
+      files: updatedFiles,
+      skills: mergedSkills,
     };
   }
 
-  const total = installed + skillsInstalled;
-  info(`${repo}: ${total} file(s) updated, ${skipped} skipped.`);
+  const total = totalInstalled + totalSkillsInstalled;
+  info(`${repo}: ${total} file(s) updated, ${totalSkipped} skipped.`);
 
-  return { updated: true, installed: total, skipped };
+  return { updated: true, installed: total, skipped: totalSkipped };
 }
