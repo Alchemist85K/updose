@@ -1,13 +1,14 @@
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  MAIN_DOCS,
-  TARGETS,
   getSkillsDir,
   getSourceDir,
   hasSkillsSupport,
   isMainDoc,
+  MAIN_DOCS,
   mapToLocalPath,
   shouldSkipFile,
+  TARGETS,
 } from './targets.js';
 
 describe('TARGETS', () => {
@@ -46,28 +47,26 @@ describe('mapToLocalPath', () => {
 
   it('maps claude files to .claude/ directory', () => {
     expect(mapToLocalPath('claude', 'commands/review.md')).toBe(
-      '.claude/commands/review.md',
+      join('.claude', 'commands/review.md'),
     );
   });
 
   it('maps codex files to project root (no prefix)', () => {
-    expect(mapToLocalPath('codex', 'utils/helper.md')).toBe(
-      'utils/helper.md',
-    );
+    expect(mapToLocalPath('codex', 'utils/helper.md')).toBe('utils/helper.md');
   });
 
   it('maps gemini files to .gemini/ directory', () => {
     expect(mapToLocalPath('gemini', 'commands/review.toml')).toBe(
-      '.gemini/commands/review.toml',
+      join('.gemini', 'commands/review.toml'),
     );
   });
 });
 
 describe('getSkillsDir', () => {
   it('returns correct skills dir for each target', () => {
-    expect(getSkillsDir('claude')).toBe('.claude/skills');
-    expect(getSkillsDir('codex')).toBe('.agents/skills');
-    expect(getSkillsDir('gemini')).toBe('.gemini/skills');
+    expect(getSkillsDir('claude')).toBe(join('.claude', 'skills'));
+    expect(getSkillsDir('codex')).toBe(join('.agents', 'skills'));
+    expect(getSkillsDir('gemini')).toBe(join('.gemini', 'skills'));
   });
 });
 

@@ -1,4 +1,12 @@
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
+
+/**
+ * Converts a native path to POSIX format (forward slashes).
+ * Used to store paths in a platform-independent format (e.g., lockfile).
+ */
+export function toPosix(p: string): string {
+  return p.replaceAll('\\', '/');
+}
 
 /**
  * Resolves a destination path and ensures it stays within the given root directory.
@@ -9,7 +17,7 @@ export function ensureWithinDir(root: string, destPath: string): string {
   const normalizedRoot = resolve(root);
 
   if (
-    !resolved.startsWith(`${normalizedRoot}/`) &&
+    !resolved.startsWith(`${normalizedRoot}${sep}`) &&
     resolved !== normalizedRoot
   ) {
     throw new Error(

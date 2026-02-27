@@ -26,6 +26,11 @@ describe('parseManifest', () => {
     });
   });
 
+  it('treats null description as undefined', () => {
+    const result = parseManifest({ ...validManifest, description: null });
+    expect(result.description).toBeUndefined();
+  });
+
   it('parses manifest with all optional fields', () => {
     const result = parseManifest({
       ...validManifest,
@@ -94,9 +99,9 @@ describe('parseManifest', () => {
   });
 
   it('throws on empty targets array', () => {
-    expect(() =>
-      parseManifest({ ...validManifest, targets: [] }),
-    ).toThrow('"targets" is required');
+    expect(() => parseManifest({ ...validManifest, targets: [] })).toThrow(
+      '"targets" is required',
+    );
   });
 
   it('throws on non-array targets', () => {
@@ -112,9 +117,9 @@ describe('parseManifest', () => {
   });
 
   it('throws on non-string description', () => {
-    expect(() =>
-      parseManifest({ ...validManifest, description: 123 }),
-    ).toThrow('"description" must be a string');
+    expect(() => parseManifest({ ...validManifest, description: 123 })).toThrow(
+      '"description" must be a string',
+    );
   });
 
   it('throws on non-array tags', () => {

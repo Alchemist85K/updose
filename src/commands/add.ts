@@ -19,7 +19,7 @@ import {
   mapToLocalPath,
   shouldSkipFile,
 } from '../core/targets.js';
-import { ensureWithinDir } from '../utils/path.js';
+import { ensureWithinDir, toPosix } from '../utils/path.js';
 import { selectTarget } from '../utils/prompts.js';
 import { createSpinner, error, info, success, warn } from '../utils/ui.js';
 
@@ -104,7 +104,7 @@ export async function addCommand(
         const relativePath = entry.path.slice(prefix.length);
         const localRelPath = mapToLocalPath(target, relativePath);
         ensureWithinDir(cwd, localRelPath);
-        console.log(`  ${entry.path} → ${localRelPath}`);
+        console.log(`  ${entry.path} → ${toPosix(localRelPath)}`);
         dryRunFiles.push(localRelPath);
       }
 
@@ -121,7 +121,7 @@ export async function addCommand(
               info('Skills that would be installed:\n');
               for (const skill of skillsManifest.skills) {
                 const skillDir = getSkillDir(target, skill.name);
-                console.log(`  ${skill.name} → ${skillDir}/`);
+                console.log(`  ${skill.name} → ${toPosix(skillDir)}/`);
                 dryRunFiles.push(skillDir);
               }
             }
@@ -233,7 +233,7 @@ export async function addCommand(
         version: manifest.version,
         target,
         installedAt: new Date().toISOString(),
-        files: installedFiles,
+        files: installedFiles.map(toPosix),
       };
       await writeLockfile(cwd, lockfile);
     }

@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { toPosix } from '../utils/path.js';
 import { warn } from '../utils/ui.js';
 import type { Target } from './targets.js';
 import { TARGETS } from './targets.js';
@@ -76,7 +77,8 @@ export async function writeLockfile(
   const filePath = join(cwd, LOCKFILE_NAME);
   const sorted: Record<string, LockfileEntry> = {};
   for (const key of Object.keys(data.packages).sort()) {
-    sorted[key] = data.packages[key]!;
+    const entry = data.packages[key]!;
+    sorted[key] = { ...entry, files: entry.files.map(toPosix) };
   }
   const output = { ...data, packages: sorted };
   await writeFile(filePath, `${JSON.stringify(output, null, 2)}\n`, 'utf-8');

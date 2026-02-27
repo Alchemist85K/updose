@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+
 export const TARGETS = ['claude', 'codex', 'gemini'] as const;
 export type Target = (typeof TARGETS)[number];
 
@@ -12,9 +14,9 @@ export const MAIN_DOCS: Record<Target, string> = {
  * All three targets support skills with SKILL.md format.
  */
 const SKILLS_DIRS: Record<Target, string> = {
-  claude: '.claude/skills',
-  codex: '.agents/skills',
-  gemini: '.gemini/skills',
+  claude: join('.claude', 'skills'),
+  codex: join('.agents', 'skills'),
+  gemini: join('.gemini', 'skills'),
 };
 
 export function hasSkillsSupport(_target: Target): boolean {
@@ -47,11 +49,11 @@ export function mapToLocalPath(target: Target, relativePath: string): string {
 
   switch (target) {
     case 'claude':
-      return `.claude/${relativePath}`;
+      return join('.claude', relativePath);
     case 'codex':
       return relativePath;
     case 'gemini':
-      return `.gemini/${relativePath}`;
+      return join('.gemini', relativePath);
   }
 }
 

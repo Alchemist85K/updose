@@ -7,8 +7,8 @@ vi.mock('../utils/ui.js', () => ({
   warn: vi.fn(),
 }));
 
-import { readLockfile, writeLockfile } from './lockfile.js';
 import type { Lockfile } from './lockfile.js';
+import { readLockfile, writeLockfile } from './lockfile.js';
 
 let tempDir: string;
 
@@ -38,16 +38,16 @@ describe('readLockfile', () => {
         },
       },
     };
-    await writeFile(
-      join(tempDir, 'updose-lock.json'),
-      JSON.stringify(data),
-    );
+    await writeFile(join(tempDir, 'updose-lock.json'), JSON.stringify(data));
 
     const result = await readLockfile(tempDir);
     expect(result.packages['user/repo']).toEqual(data.packages['user/repo']);
   });
 
-  it('skips invalid entries', async () => {
+  it('skips invalid entries without warning', async () => {
+    const { warn } = await import('../utils/ui.js');
+    vi.mocked(warn).mockClear();
+
     const data = {
       version: 1,
       packages: {
@@ -63,24 +63,23 @@ describe('readLockfile', () => {
         },
       },
     };
-    await writeFile(
-      join(tempDir, 'updose-lock.json'),
-      JSON.stringify(data),
-    );
+    await writeFile(join(tempDir, 'updose-lock.json'), JSON.stringify(data));
 
     const result = await readLockfile(tempDir);
     expect(result.packages['valid/repo']).toBeDefined();
     expect(result.packages['invalid/repo']).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
   });
 
-  it('returns empty lockfile for corrupted JSON', async () => {
-    await writeFile(
-      join(tempDir, 'updose-lock.json'),
-      'not valid json {{{',
-    );
+  it('returns empty lockfile for corrupted JSON and warns', async () => {
+    const { warn } = await import('../utils/ui.js');
+    vi.mocked(warn).mockClear();
+
+    await writeFile(join(tempDir, 'updose-lock.json'), 'not valid json {{{');
 
     const result = await readLockfile(tempDir);
     expect(result).toEqual({ version: 1, packages: {} });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('corrupted'));
   });
 
   it('returns empty lockfile when packages key is missing', async () => {
@@ -105,10 +104,7 @@ describe('readLockfile', () => {
         },
       },
     };
-    await writeFile(
-      join(tempDir, 'updose-lock.json'),
-      JSON.stringify(data),
-    );
+    await writeFile(join(tempDir, 'updose-lock.json'), JSON.stringify(data));
 
     const result = await readLockfile(tempDir);
     expect(result.packages['user/repo']).toBeUndefined();
@@ -126,10 +122,7 @@ describe('readLockfile', () => {
         },
       },
     };
-    await writeFile(
-      join(tempDir, 'updose-lock.json'),
-      JSON.stringify(data),
-    );
+    await writeFile(join(tempDir, 'updose-lock.json'), JSON.stringify(data));
 
     const result = await readLockfile(tempDir);
     expect(result.packages['user/repo']).toBeUndefined();
@@ -152,10 +145,7 @@ describe('writeLockfile', () => {
 
     await writeLockfile(tempDir, data);
 
-    const content = await readFile(
-      join(tempDir, 'updose-lock.json'),
-      'utf-8',
-    );
+    const content = await readFile(join(tempDir, 'updose-lock.json'), 'utf-8');
     const parsed = JSON.parse(content);
     expect(parsed.version).toBe(1);
     expect(parsed.packages['user/repo'].version).toBe('1.0.0');
@@ -182,10 +172,7 @@ describe('writeLockfile', () => {
 
     await writeLockfile(tempDir, data);
 
-    const content = await readFile(
-      join(tempDir, 'updose-lock.json'),
-      'utf-8',
-    );
+    const content = await readFile(join(tempDir, 'updose-lock.json'), 'utf-8');
     const keys = Object.keys(JSON.parse(content).packages);
     expect(keys).toEqual(['a-user/repo', 'z-user/repo']);
   });
@@ -194,11 +181,36 @@ describe('writeLockfile', () => {
     const data: Lockfile = { version: 1, packages: {} };
     await writeLockfile(tempDir, data);
 
-    const content = await readFile(
-      join(tempDir, 'updose-lock.json'),
-      'utf-8',
-    );
+    const content = await readFile(join(tempDir, 'updose-lock.json'), 'utf-8');
     expect(content).toContain('\n');
     expect(content.endsWith('\n')).toBe(true);
+  });
+
+  it('normalizes backslash paths to POSIX in files array', async () => {
+    const data: Lockfile = {
+      version: 1,
+      packages: {
+        'user/repo': {
+          version: '1.0.0',
+          target: 'claude',
+          installedAt: '2025-01-01T00:00:00.000Z',
+          files: [
+            '.claude\\commands\\review.md',
+            '.claude\\skills\\lint\\SKILL.md',
+            'CLAUDE.md',
+          ],
+        },
+      },
+    };
+
+    await writeLockfile(tempDir, data);
+
+    const content = await readFile(join(tempDir, 'updose-lock.json'), 'utf-8');
+    const parsed = JSON.parse(content);
+    expect(parsed.packages['user/repo'].files).toEqual([
+      '.claude/commands/review.md',
+      '.claude/skills/lint/SKILL.md',
+      'CLAUDE.md',
+    ]);
   });
 });

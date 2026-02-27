@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { ensureWithinDir } from '../utils/path.js';
 import type { TreeEntry } from './github.js';
 import { fetchFile } from './github.js';
@@ -50,14 +51,14 @@ export function parseSkills(raw: unknown): SkillsManifest {
  * Returns the local directory path for a skill (e.g., ".claude/skills/review").
  */
 export function getSkillDir(target: Target, skillName: string): string {
-  return `${getSkillsDir(target)}/${skillName}`;
+  return join(getSkillsDir(target), skillName);
 }
 
 /**
  * Returns the local path for a skill's SKILL.md entry file.
  */
 export function getSkillEntryPath(target: Target, skillName: string): string {
-  return `${getSkillsDir(target)}/${skillName}/SKILL.md`;
+  return join(getSkillsDir(target), skillName, 'SKILL.md');
 }
 
 /**
@@ -92,7 +93,7 @@ export async function installSkill(
       const relativePath = entry.path.slice(skillPrefix.length);
       if (!relativePath) continue;
 
-      const destRelPath = `${getSkillDir(target, skill.name)}/${relativePath}`;
+      const destRelPath = join(getSkillDir(target, skill.name), relativePath);
       const destPath = ensureWithinDir(cwd, destRelPath);
 
       const content = await fetchFile(repo, entry.path);

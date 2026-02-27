@@ -18,7 +18,7 @@ import {
   mapToLocalPath,
   shouldSkipFile,
 } from '../core/targets.js';
-import { ensureWithinDir } from '../utils/path.js';
+import { ensureWithinDir, toPosix } from '../utils/path.js';
 import { createSpinner, error, info, success, warn } from '../utils/ui.js';
 
 interface UpdateOptions {
@@ -182,7 +182,7 @@ async function updatePackage(
       const relativePath = file.path.slice(prefix.length);
       const localRelPath = mapToLocalPath(target, relativePath);
       ensureWithinDir(cwd, localRelPath);
-      console.log(`  ${file.path} → ${localRelPath}`);
+      console.log(`  ${file.path} → ${toPosix(localRelPath)}`);
       dryRunCount++;
     }
 
@@ -198,7 +198,7 @@ async function updatePackage(
             info('Skills that would be updated:\n');
             for (const skill of skillsManifest.skills) {
               console.log(
-                `  ${skill.name} → ${getSkillDir(target, skill.name)}/`,
+                `  ${skill.name} → ${toPosix(getSkillDir(target, skill.name))}/`,
               );
               dryRunCount++;
             }
@@ -302,7 +302,8 @@ async function updatePackage(
   // 8. Update lockfile entry
   if (installedFiles.length > 0) {
     const existingFiles = lockfile.packages[repo]?.files ?? [];
-    const allFiles = [...new Set([...existingFiles, ...installedFiles])];
+    const posixFiles = installedFiles.map(toPosix);
+    const allFiles = [...new Set([...existingFiles, ...posixFiles])];
     lockfile.packages[repo] = {
       version: manifest.version,
       target,
