@@ -112,6 +112,8 @@ function buildFileList(
       `npx updose add ${author}/${name}`,
       '```',
       '',
+      '> **Note:** `author` and `name` in updose.json must match your GitHub repository owner and name.',
+      '',
     ].join('\n'),
   });
 

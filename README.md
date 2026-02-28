@@ -211,9 +211,10 @@ npx updose publish
 1. Reads and parses `updose.json` from the current directory. If the file is missing, shows an error and suggests running `updose init` first.
 2. Validates the manifest structure (name, author, version, targets are required)
 3. Detects the GitHub repository by running `git remote get-url origin`. Supports both HTTPS (`https://github.com/owner/repo.git`) and SSH (`git@github.com:owner/repo.git`) formats.
-4. Authenticates via GitHub — if no valid token exists, automatically runs the `login` flow (see below)
-5. Verifies the repository actually exists on GitHub. If the repo has not been pushed yet, shows an error and exits.
-6. Displays a publication summary for review:
+4. Validates that `author` and `name` in `updose.json` match the repository owner and name (case-insensitive). If they don't match, shows an error and exits.
+5. Authenticates via GitHub — if no valid token exists, automatically runs the `login` flow (see below)
+6. Verifies the repository actually exists on GitHub. If the repo has not been pushed yet, shows an error and exits.
+7. Displays a publication summary for review:
 
 ```
 Publishing:
@@ -224,9 +225,9 @@ Publishing:
   Tags:        react, typescript, web
 ```
 
-7. Asks for confirmation: **"Publish to registry?"** (defaults to yes). If declined, displays "Publish cancelled." and exits.
-8. Registers the boilerplate in the marketplace registry
-9. On success, displays: `Users can now install with: npx updose add owner/repo`
+8. Asks for confirmation: **"Publish to registry?"** (defaults to yes). If declined, displays "Publish cancelled." and exits.
+9. Registers the boilerplate in the marketplace registry
+10. On success, displays: `Users can now install with: npx updose add owner/repo`
 
 **Prerequisites:**
 
@@ -387,8 +388,8 @@ The manifest file that describes your boilerplate.
 
 | Field         | Required  | Description                                                             |
 |-------        |---------- |-------------                                                            |
-| `name`        | Yes       | The boilerplate name.                                                   |
-| `author`      | Yes       | Author name (typically your GitHub username).                           |
+| `name`        | Yes       | The boilerplate name. Must match the GitHub repository name.            |
+| `author`      | Yes       | Author name. Must match the GitHub repository owner.                    |
 | `version`     | Yes       | Version string following [semver](https://semver.org/) (e.g., `1.0.0`). |
 | `targets`     | Yes       | Array of supported targets: `"claude"`, `"codex"`, and/or `"gemini"`.   |
 | `description` | No        | A short description shown in search results.                            |

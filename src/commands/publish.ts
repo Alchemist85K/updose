@@ -53,7 +53,24 @@ export async function publishCommand(): Promise<void> {
     return;
   }
 
-  // Step 3: Authenticate with GitHub
+  // Step 3: Validate manifest author/name against repo
+  const [repoOwner, repoName] = repo.split('/');
+  if (manifest.author.toLowerCase() !== repoOwner.toLowerCase()) {
+    logError(
+      `Manifest author "${manifest.author}" does not match repository owner "${repoOwner}".`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  if (manifest.name.toLowerCase() !== repoName.toLowerCase()) {
+    logError(
+      `Manifest name "${manifest.name}" does not match repository name "${repoName}".`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  // Step 4: Authenticate with GitHub
   info('Authentication required to publish.');
   let token: string;
   try {
@@ -64,7 +81,7 @@ export async function publishCommand(): Promise<void> {
     return;
   }
 
-  // Step 3.5: Verify repo exists on GitHub
+  // Step 5: Verify repo exists on GitHub
   let repoRes: Response;
   try {
     repoRes = await fetch(`${GITHUB_API_URL}/repos/${repo}`, {
@@ -97,7 +114,7 @@ export async function publishCommand(): Promise<void> {
     return;
   }
 
-  // Step 4: Show what we're about to publish
+  // Step 6: Show what we're about to publish
   console.log();
   console.log(chalk.bold('Publishing:'));
   console.log(`  Name:        ${manifest.name}`);
@@ -113,7 +130,7 @@ export async function publishCommand(): Promise<void> {
     return;
   }
 
-  // Step 5: Register with the API
+  // Step 7: Register with the API
   const spinner = createSpinner('Publishing to registry...').start();
   try {
     await registerBoilerplate(
