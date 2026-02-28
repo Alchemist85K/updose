@@ -30,11 +30,11 @@ const TARGET_SCAFFOLDS: Record<Target, string[]> = {
   gemini: ['gemini/GEMINI.md', 'gemini/skills/.gitkeep'],
 };
 
-function getMainDocContent(target: Target, name: string): string {
+function getMainDocContent(target: Target): string {
   const docs: Record<Target, string> = {
-    claude: `# ${name}\n\nAdd your Claude Code instructions here.\n`,
-    codex: `# ${name}\n\nAdd your Codex agent instructions here.\n`,
-    gemini: `# ${name}\n\nAdd your Gemini instructions here.\n`,
+    claude: `# ${MAIN_DOCS.claude}\n\nAdd your Claude Code instructions here.\n`,
+    codex: `# ${MAIN_DOCS.codex}\n\nAdd your Codex agent instructions here.\n`,
+    gemini: `# ${MAIN_DOCS.gemini}\n\nAdd your Gemini instructions here.\n`,
   };
   return docs[target];
 }
@@ -121,7 +121,7 @@ function buildFileList(
       const isMainDoc = filePath === `${target}/${MAIN_DOCS[target]}`;
       files.push({
         path: filePath,
-        content: isMainDoc ? getMainDocContent(target, name) : '',
+        content: isMainDoc ? getMainDocContent(target) : '',
       });
     }
   }
