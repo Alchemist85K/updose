@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-27
+
+### Added
+
+- Monorepo support: `--dir` option for `init` and `publish` commands
+- `parseRepoInput()` to parse `owner/repo/dir` format in `add` command
+- Subdirectory-aware manifest and skills.json fetching
+- Display `dir` path in search results and publish summary
+- Monorepo documentation and examples in README
+
+### Fixed
+
+- Literal `<repo>` in `init` next-steps output now shows actual repo name
+
 ## [0.2.0] - 2026-02-27
 
 ### Added
@@ -35,5 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Platform-independent path handling
 - MIT license
 
+[0.3.0]: https://github.com/Alchemist85K/updose/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Alchemist85K/updose/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Alchemist85K/updose/releases/tag/v0.1.0
