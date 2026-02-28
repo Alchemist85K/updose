@@ -78,6 +78,7 @@ function buildFileList(
     author,
     version: DEFAULT_VERSION,
     targets,
+    tags: [],
   };
   if (description) manifest.description = description;
   files.push({
