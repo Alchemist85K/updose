@@ -1,12 +1,6 @@
 {
   "skills": [
-    {
-      "repo": "https://github.com/intellectronica/agent-skills",
-      "skill": "context7"
-    },
-    {
-      "repo": "https://github.com/microsoft/playwright-cli",
-      "skill": "playwright-cli"
-    }
+    "npx skills add https://github.com/intellectronica/agent-skills --skill context7",
+    "npx skills add https://github.com/microsoft/playwright-cli --skill playwright-cli"
   ]
 }

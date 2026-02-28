@@ -396,28 +396,22 @@ The manifest file that describes your boilerplate.
 
 ### `skills.json` Reference
 
-An optional file that declares external skill dependencies. When a user installs your boilerplate, these skills are automatically installed via [skills.sh](https://skills.sh/) (`npx skills add`).
+An optional file that declares external skill dependencies. When a user installs your boilerplate, these skills are automatically installed via [skills.sh](https://skills.sh/).
+
+Each entry in the `skills` array is a command string that is executed directly (e.g., `npx skills add <repo> --skill <name>`).
 
 ```json
 {
   "skills": [
-    {
-      "repo": "https://github.com/intellectronica/agent-skills",
-      "skill": "context7"
-    },
-    {
-      "repo": "https://github.com/microsoft/playwright-cli",
-      "skill": "playwright-cli"
-    }
+    "npx skills add https://github.com/intellectronica/agent-skills --skill context7",
+    "npx skills add https://github.com/microsoft/playwright-cli --skill playwright-cli"
   ]
 }
 ```
 
-| Field             | Description                                         |
-|-------            |-------------                                        |
-| `skills`          | Array of skill entries.                             |
-| `skills[].repo`   | GitHub repository URL that hosts the skill.         |
-| `skills[].skill`  | Name of the skill to install from that repository.  |
+| Field      | Description                                                                    |
+|-------     |-------------                                                                   |
+| `skills`   | Array of command strings. Each command is split on whitespace and executed directly (no shell). |
 
 Skills are installed into the target's skills directory (e.g., `.claude/skills/`, `.gemini/skills/`).
 
