@@ -1,9 +1,9 @@
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { parseSkills, runSkillInstall } from './skills.js';
 
 vi.mock('node:child_process', () => ({
-  execFileSync: vi.fn(),
+  execSync: vi.fn(),
 }));
 
 describe('parseSkills', () => {
@@ -74,8 +74,8 @@ describe('parseSkills', () => {
 
 describe('runSkillInstall', () => {
   it('appends agent flags, --copy, and -y to the command', () => {
-    const mockExecFileSync = vi.mocked(execFileSync);
-    mockExecFileSync.mockReturnValue(Buffer.from(''));
+    const mockExecSync = vi.mocked(execSync);
+    mockExecSync.mockReturnValue(Buffer.from(''));
 
     runSkillInstall(
       'npx skills add https://github.com/user/repo --skill review',
@@ -83,26 +83,15 @@ describe('runSkillInstall', () => {
       ['claude-code'],
     );
 
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'npx',
-      [
-        'skills',
-        'add',
-        'https://github.com/user/repo',
-        '--skill',
-        'review',
-        '-a',
-        'claude-code',
-        '--copy',
-        '-y',
-      ],
-      { cwd: '/path/to/project', stdio: 'inherit', shell: true },
+    expect(mockExecSync).toHaveBeenCalledWith(
+      'npx skills add https://github.com/user/repo --skill review -a claude-code --copy -y',
+      { cwd: '/path/to/project', stdio: 'inherit' },
     );
   });
 
   it('appends multiple agents', () => {
-    const mockExecFileSync = vi.mocked(execFileSync);
-    mockExecFileSync.mockReturnValue(Buffer.from(''));
+    const mockExecSync = vi.mocked(execSync);
+    mockExecSync.mockReturnValue(Buffer.from(''));
 
     runSkillInstall('npx skills add repo --skill review', '/tmp', [
       'claude-code',
@@ -110,35 +99,21 @@ describe('runSkillInstall', () => {
       'gemini-cli',
     ]);
 
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'npx',
-      [
-        'skills',
-        'add',
-        'repo',
-        '--skill',
-        'review',
-        '-a',
-        'claude-code',
-        'codex',
-        'gemini-cli',
-        '--copy',
-        '-y',
-      ],
-      { cwd: '/tmp', stdio: 'inherit', shell: true },
+    expect(mockExecSync).toHaveBeenCalledWith(
+      'npx skills add repo --skill review -a claude-code codex gemini-cli --copy -y',
+      { cwd: '/tmp', stdio: 'inherit' },
     );
   });
 
   it('appends --copy and -y even with empty agents', () => {
-    const mockExecFileSync = vi.mocked(execFileSync);
-    mockExecFileSync.mockReturnValue(Buffer.from(''));
+    const mockExecSync = vi.mocked(execSync);
+    mockExecSync.mockReturnValue(Buffer.from(''));
 
     runSkillInstall('npx skills add repo --skill review', '/tmp', []);
 
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'npx',
-      ['skills', 'add', 'repo', '--skill', 'review', '--copy', '-y'],
-      { cwd: '/tmp', stdio: 'inherit', shell: true },
+    expect(mockExecSync).toHaveBeenCalledWith(
+      'npx skills add repo --skill review --copy -y',
+      { cwd: '/tmp', stdio: 'inherit' },
     );
   });
 
@@ -172,9 +147,9 @@ describe('runSkillInstall', () => {
     );
   });
 
-  it('propagates errors from execFileSync', () => {
-    const mockExecFileSync = vi.mocked(execFileSync);
-    mockExecFileSync.mockImplementation(() => {
+  it('propagates errors from execSync', () => {
+    const mockExecSync = vi.mocked(execSync);
+    mockExecSync.mockImplementation(() => {
       throw new Error('npx not found');
     });
 

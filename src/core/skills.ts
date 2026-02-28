@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 
 export interface SkillsManifest {
   skills: string[];
@@ -40,7 +40,7 @@ function validateCommand(parts: string[]): void {
 
 /**
  * Runs a skill install command by splitting it into executable + args.
- * shell: true is required for npx resolution in managed Node environments (nvm, fnm, etc.).
+ * execSync is used (instead of execFileSync) for npx resolution in managed Node environments (nvm, fnm, etc.).
  * Command parts are validated against shell metacharacters before execution.
  */
 export function runSkillInstall(
@@ -58,9 +58,8 @@ export function runSkillInstall(
   }
   args.push('--copy', '-y');
   validateCommand([exe, ...args]);
-  execFileSync(exe, args, {
+  execSync([exe, ...args].join(' '), {
     cwd,
     stdio: 'inherit',
-    shell: true,
   });
 }
