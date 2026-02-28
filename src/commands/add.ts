@@ -132,7 +132,7 @@ export async function addCommand(
             console.log();
             info('Skills that would be installed:\n');
             for (const skill of skillsManifest.skills) {
-              console.log(`  ${skill.skill} (from ${skill.repo})`);
+              console.log(`  ${skill}`);
             }
           }
         } catch {
@@ -211,12 +211,12 @@ export async function addCommand(
 
         for (const skill of skillsManifest.skills) {
           try {
-            runSkillInstall(skill.repo, skill.skill, cwd);
-            success(`Installed skill: ${skill.skill} (from ${skill.repo})`);
+            runSkillInstall(skill, cwd);
+            success(`Installed skill: ${skill}`);
             skillsInstalled++;
           } catch (err) {
             warn(
-              `Failed to install skill "${skill.skill}": ${err instanceof Error ? err.message : String(err)}`,
+              `Failed to install skill "${skill}": ${err instanceof Error ? err.message : String(err)}`,
             );
           }
         }

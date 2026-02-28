@@ -1,18 +1,18 @@
-import { readFileSync } from "node:fs";
-import { defineConfig } from "tsup";
+import { readFileSync } from 'node:fs';
+import { defineConfig } from 'tsup';
 
-const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 export default defineConfig({
-  entry: ["src/index.ts"],
-  format: ["cjs", "esm"],
+  entry: ['src/index.ts'],
+  format: ['cjs', 'esm'],
   clean: true,
   define: {
     __VERSION__: JSON.stringify(pkg.version),
   },
   banner({ format }) {
-    if (format === "esm") {
-      return { js: "#!/usr/bin/env node" };
+    if (format === 'esm') {
+      return { js: '#!/usr/bin/env node' };
     }
   },
 });

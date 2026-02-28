@@ -1,15 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
-import type { Target } from './targets.js';
-import { getSkillsDir } from './targets.js';
-
-export interface Skill {
-  repo: string;
-  skill: string;
-}
 
 export interface SkillsManifest {
-  skills: Skill[];
+  skills: string[];
 }
 
 export function parseSkills(raw: unknown): SkillsManifest {
@@ -24,46 +16,29 @@ export function parseSkills(raw: unknown): SkillsManifest {
     throw new Error('Invalid skills.json: "skills" must be an array');
   }
 
-  const parsed: Skill[] = [];
+  const parsed: string[] = [];
 
   for (const entry of skills) {
-    if (typeof entry !== 'object' || entry === null) continue;
-    const e = entry as Record<string, unknown>;
-
-    const repo = typeof e.repo === 'string' ? e.repo.trim() : null;
-    const skill = typeof e.skill === 'string' ? e.skill.trim() : null;
-
-    if (!repo || !skill) continue;
-
-    parsed.push({ repo, skill });
+    if (typeof entry !== 'string') continue;
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    parsed.push(trimmed);
   }
 
   return { skills: parsed };
 }
 
 /**
- * Returns the local directory path for a skill (e.g., ".claude/skills/review").
+ * Runs a skill install command by splitting it into executable + args.
+ * Uses execFileSync (no shell) to prevent command injection.
  */
-export function getSkillDir(target: Target, skillName: string): string {
-  return join(getSkillsDir(target), skillName);
-}
-
-/**
- * Returns the local path for a skill's SKILL.md entry file.
- */
-export function getSkillEntryPath(target: Target, skillName: string): string {
-  return join(getSkillsDir(target), skillName, 'SKILL.md');
-}
-
-/**
- * Runs `npx skills add <repo> --skill <skill>` to install an external skill.
- */
-export function runSkillInstall(
-  repo: string,
-  skill: string,
-  cwd: string,
-): void {
-  execFileSync('npx', ['skills', 'add', repo, '--skill', skill], {
+export function runSkillInstall(command: string, cwd: string): void {
+  const parts = command.split(/\s+/);
+  const [exe, ...args] = parts;
+  if (!exe) {
+    throw new Error(`Invalid skill command: "${command}"`);
+  }
+  execFileSync(exe, args, {
     cwd,
     stdio: 'inherit',
   });
