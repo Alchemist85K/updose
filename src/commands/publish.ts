@@ -54,7 +54,7 @@ export async function publishCommand(): Promise<void> {
   }
 
   // Step 3: Validate manifest author/name against repo
-  const [repoOwner, repoName] = repo.split('/');
+  const [repoOwner, repoName] = repo.split('/') as [string, string];
   if (manifest.author.toLowerCase() !== repoOwner.toLowerCase()) {
     logError(
       `Manifest author "${manifest.author}" does not match repository owner "${repoOwner}".`,
