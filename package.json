@@ -1,6 +1,6 @@
 {
   "name": "updose",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "description": "AI coding tool boilerplate marketplace",
   "main": "dist/index.cjs",
