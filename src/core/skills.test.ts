@@ -1,9 +1,9 @@
-import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
-import { parseSkills, runSkillInstall } from './skills.js';
+import { formatSkillLabel, parseSkills, runSkillInstall } from './skills.js';
 
 vi.mock('node:child_process', () => ({
-  execSync: vi.fn(),
+  exec: vi.fn(),
 }));
 
 describe('parseSkills', () => {
@@ -73,90 +73,133 @@ describe('parseSkills', () => {
 });
 
 describe('runSkillInstall', () => {
-  it('appends agent flags, --copy, and -y to the command', () => {
-    const mockExecSync = vi.mocked(execSync);
-    mockExecSync.mockReturnValue(Buffer.from(''));
+  it('appends agent flags, --copy, and -y to the command', async () => {
+    const mockExec = vi.mocked(exec);
+    mockExec.mockImplementation((_cmd, _opts, cb) => {
+      (cb as (err: Error | null) => void)(null);
+      return {} as ReturnType<typeof exec>;
+    });
 
-    runSkillInstall(
+    await runSkillInstall(
       'npx skills add https://github.com/user/repo --skill review',
       '/path/to/project',
       ['claude-code'],
     );
 
-    expect(mockExecSync).toHaveBeenCalledWith(
+    expect(mockExec).toHaveBeenCalledWith(
       'npx skills add https://github.com/user/repo --skill review -a claude-code --copy -y',
-      { cwd: '/path/to/project', stdio: 'inherit' },
+      { cwd: '/path/to/project' },
+      expect.any(Function),
     );
   });
 
-  it('appends multiple agents', () => {
-    const mockExecSync = vi.mocked(execSync);
-    mockExecSync.mockReturnValue(Buffer.from(''));
+  it('appends multiple agents', async () => {
+    const mockExec = vi.mocked(exec);
+    mockExec.mockImplementation((_cmd, _opts, cb) => {
+      (cb as (err: Error | null) => void)(null);
+      return {} as ReturnType<typeof exec>;
+    });
 
-    runSkillInstall('npx skills add repo --skill review', '/tmp', [
+    await runSkillInstall('npx skills add repo --skill review', '/tmp', [
       'claude-code',
       'codex',
       'gemini-cli',
     ]);
 
-    expect(mockExecSync).toHaveBeenCalledWith(
+    expect(mockExec).toHaveBeenCalledWith(
       'npx skills add repo --skill review -a claude-code codex gemini-cli --copy -y',
-      { cwd: '/tmp', stdio: 'inherit' },
+      { cwd: '/tmp' },
+      expect.any(Function),
     );
   });
 
-  it('appends --copy and -y even with empty agents', () => {
-    const mockExecSync = vi.mocked(execSync);
-    mockExecSync.mockReturnValue(Buffer.from(''));
+  it('appends --copy and -y even with empty agents', async () => {
+    const mockExec = vi.mocked(exec);
+    mockExec.mockImplementation((_cmd, _opts, cb) => {
+      (cb as (err: Error | null) => void)(null);
+      return {} as ReturnType<typeof exec>;
+    });
 
-    runSkillInstall('npx skills add repo --skill review', '/tmp', []);
+    await runSkillInstall('npx skills add repo --skill review', '/tmp', []);
 
-    expect(mockExecSync).toHaveBeenCalledWith(
+    expect(mockExec).toHaveBeenCalledWith(
       'npx skills add repo --skill review --copy -y',
-      { cwd: '/tmp', stdio: 'inherit' },
+      { cwd: '/tmp' },
+      expect.any(Function),
     );
   });
 
-  it('rejects command with shell metacharacters', () => {
-    expect(() =>
+  it('rejects command with shell metacharacters', async () => {
+    await expect(
       runSkillInstall('npx skills add repo; rm -rf /', '/tmp', []),
-    ).toThrow('Unsafe character');
+    ).rejects.toThrow('Unsafe character');
   });
 
-  it('rejects command with pipe', () => {
-    expect(() =>
+  it('rejects command with pipe', async () => {
+    await expect(
       runSkillInstall('npx skills add repo | cat /etc/passwd', '/tmp', []),
-    ).toThrow('Unsafe character');
+    ).rejects.toThrow('Unsafe character');
   });
 
-  it('rejects command with backtick', () => {
-    expect(() =>
+  it('rejects command with backtick', async () => {
+    await expect(
       runSkillInstall('npx skills add `whoami`', '/tmp', []),
-    ).toThrow('Unsafe character');
+    ).rejects.toThrow('Unsafe character');
   });
 
-  it('rejects command with $() substitution', () => {
-    expect(() =>
+  it('rejects command with $() substitution', async () => {
+    await expect(
       runSkillInstall('npx skills add $(whoami)', '/tmp', []),
-    ).toThrow('Unsafe character');
+    ).rejects.toThrow('Unsafe character');
   });
 
-  it('throws on empty command', () => {
-    expect(() => runSkillInstall('', '/tmp', [])).toThrow(
+  it('throws on empty command', async () => {
+    await expect(runSkillInstall('', '/tmp', [])).rejects.toThrow(
       'Invalid skill command',
     );
   });
 
-  it('propagates errors from execSync', () => {
-    const mockExecSync = vi.mocked(execSync);
-    mockExecSync.mockImplementation(() => {
-      throw new Error('npx not found');
+  it('propagates errors from exec', async () => {
+    const mockExec = vi.mocked(exec);
+    mockExec.mockImplementation((_cmd, _opts, cb) => {
+      (cb as (err: Error | null) => void)(new Error('npx not found'));
+      return {} as ReturnType<typeof exec>;
     });
 
-    expect(() =>
+    await expect(
       runSkillInstall('npx skills add repo --skill test', '/tmp', [
         'claude-code',
       ]),
-    ).toThrow('npx not found');
+    ).rejects.toThrow('npx not found');
+  });
+});
+
+describe('formatSkillLabel', () => {
+  it('extracts user/repo > skill-name from full command', () => {
+    expect(
+      formatSkillLabel(
+        'npx skills add https://github.com/user/repo --skill review',
+      ),
+    ).toBe('user/repo > review');
+  });
+
+  it('handles .git suffix in URL', () => {
+    expect(
+      formatSkillLabel(
+        'npx skills add https://github.com/user/repo.git --skill lint',
+      ),
+    ).toBe('user/repo > lint');
+  });
+
+  it('falls back to stripping npx skills add prefix', () => {
+    expect(formatSkillLabel('npx skills add some-local-path')).toBe(
+      'some-local-path',
+    );
+  });
+
+  it('returns full command when no prefix match', () => {
+    expect(formatSkillLabel('custom-installer run thing')).toBe(
+      'custom-installer run thing',
+    );
   });
 });

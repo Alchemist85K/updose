@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
 
 export interface SkillsManifest {
   skills: string[];
@@ -40,26 +40,53 @@ function validateCommand(parts: string[]): void {
 
 /**
  * Runs a skill install command by splitting it into executable + args.
- * execSync is used (instead of execFileSync) for npx resolution in managed Node environments (nvm, fnm, etc.).
+ * exec is used (instead of execFile) for npx resolution in managed Node environments (nvm, fnm, etc.).
  * Command parts are validated against shell metacharacters before execution.
  */
 export function runSkillInstall(
   command: string,
   cwd: string,
   agents: string[],
-): void {
+): Promise<void> {
   const parts = command.split(/\s+/);
   const [exe, ...args] = parts;
   if (!exe) {
-    throw new Error(`Invalid skill command: "${command}"`);
+    return Promise.reject(new Error(`Invalid skill command: "${command}"`));
   }
   if (agents.length > 0) {
     args.push('-a', ...agents);
   }
   args.push('--copy', '-y');
-  validateCommand([exe, ...args]);
-  execSync([exe, ...args].join(' '), {
-    cwd,
-    stdio: 'inherit',
+  try {
+    validateCommand([exe, ...args]);
+  } catch (err) {
+    return Promise.reject(err);
+  }
+  return new Promise<void>((resolve, reject) => {
+    exec([exe, ...args].join(' '), { cwd }, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
   });
+}
+
+/**
+ * Extracts a human-readable label from a skill install command.
+ * e.g. "npx skills add https://github.com/user/repo --skill review" → "user/repo > review"
+ */
+export function formatSkillLabel(command: string): string {
+  const ghMatch = command.match(
+    /github\.com\/([^/\s]+\/[^/\s]+?)(?:\.git)?(?:\s|$)/,
+  );
+  const skillMatch = command.match(/--skill\s+(\S+)/);
+
+  if (ghMatch && skillMatch) {
+    return `${ghMatch[1]} > ${skillMatch[1]}`;
+  }
+
+  // Fallback: strip "npx skills add" prefix
+  return command.replace(/^npx\s+skills\s+add\s+/, '');
 }

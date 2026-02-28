@@ -9,7 +9,11 @@ import {
 import { fileExists, installFile, resolveConflict } from '../core/installer.js';
 import type { Manifest } from '../core/manifest.js';
 import type { SkillsManifest } from '../core/skills.js';
-import { parseSkills, runSkillInstall } from '../core/skills.js';
+import {
+  formatSkillLabel,
+  parseSkills,
+  runSkillInstall,
+} from '../core/skills.js';
 import type { Target } from '../core/targets.js';
 import {
   getAgentName,
@@ -20,7 +24,40 @@ import {
 } from '../core/targets.js';
 import { ensureWithinDir, toPosix } from '../utils/path.js';
 import { selectTargets } from '../utils/prompts.js';
-import { createSpinner, error, info, success, warn } from '../utils/ui.js';
+import {
+  createMultiSpinner,
+  createSpinner,
+  error,
+  info,
+  success,
+  warn,
+} from '../utils/ui.js';
+
+const SKILL_CONCURRENCY = 5;
+
+async function settledPool<T>(
+  tasks: (() => Promise<T>)[],
+  limit: number,
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+  let next = 0;
+
+  async function worker(): Promise<void> {
+    while (next < tasks.length) {
+      const i = next++;
+      try {
+        results[i] = { status: 'fulfilled', value: await tasks[i]!() };
+      } catch (reason) {
+        results[i] = { status: 'rejected', reason };
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, tasks.length) }, worker),
+  );
+  return results;
+}
 
 interface AddOptions {
   yes?: boolean | undefined;
@@ -213,15 +250,36 @@ export async function addCommand(
         info('Installing skills...\n');
 
         const agents = selectedTargets.map(getAgentName);
+        const labels = skillsManifest.skills.map(formatSkillLabel);
+        const spinner = createMultiSpinner(labels).start();
 
-        for (const skill of skillsManifest.skills) {
-          try {
-            runSkillInstall(skill, cwd, agents);
-            success(`Installed skill: ${skill}`);
+        const results = await settledPool(
+          skillsManifest.skills.map(
+            (skill, i) => () =>
+              runSkillInstall(skill, cwd, agents).then(
+                () => spinner.markSuccess(i),
+                (err) => {
+                  spinner.markFail(i);
+                  throw err;
+                },
+              ),
+          ),
+          SKILL_CONCURRENCY,
+        );
+
+        spinner.stop();
+
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
             skillsInstalled++;
-          } catch (err) {
+          }
+        }
+
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i]!;
+          if (r.status === 'rejected') {
             warn(
-              `Failed to install skill "${skill}": ${err instanceof Error ? err.message : String(err)}`,
+              `Failed to install skill "${skillsManifest.skills[i]}": ${r.reason instanceof Error ? r.reason.message : String(r.reason)}`,
             );
           }
         }
@@ -230,10 +288,13 @@ export async function addCommand(
 
     // Summary
     console.log();
-    const total = installed + skillsInstalled;
-    success(`Done! ${total} file(s) installed, ${skipped} skipped.`);
+    const summary =
+      skillsInstalled > 0
+        ? `${installed} file(s) + ${skillsInstalled} skill(s)`
+        : `${installed} file(s)`;
+    success(`Done! ${summary} installed, ${skipped} skipped.`);
     // Telemetry (best-effort, silent failures)
-    if (total > 0) {
+    if (installed + skillsInstalled > 0) {
       await recordDownload(repo).catch(() => {});
     }
   } catch (err) {
