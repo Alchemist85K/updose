@@ -64,3 +64,13 @@ export function getSourceDir(target: Target): string {
 export function shouldSkipFile(relativePath: string): boolean {
   return relativePath.endsWith('.gitkeep');
 }
+
+const TARGET_TO_AGENT: Record<Target, string> = {
+  claude: 'claude-code',
+  codex: 'codex',
+  gemini: 'gemini-cli',
+};
+
+export function getAgentName(target: Target): string {
+  return TARGET_TO_AGENT[target];
+}

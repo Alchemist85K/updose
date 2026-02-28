@@ -28,18 +28,39 @@ export function parseSkills(raw: unknown): SkillsManifest {
   return { skills: parsed };
 }
 
+const SHELL_META = /[;&|`$(){}[\]<>!#~*?\n\r]/;
+
+function validateCommand(parts: string[]): void {
+  for (const part of parts) {
+    if (SHELL_META.test(part)) {
+      throw new Error(`Unsafe character in skill command: "${part}"`);
+    }
+  }
+}
+
 /**
  * Runs a skill install command by splitting it into executable + args.
- * Uses execFileSync (no shell) to prevent command injection.
+ * shell: true is required for npx resolution in managed Node environments (nvm, fnm, etc.).
+ * Command parts are validated against shell metacharacters before execution.
  */
-export function runSkillInstall(command: string, cwd: string): void {
+export function runSkillInstall(
+  command: string,
+  cwd: string,
+  agents: string[],
+): void {
   const parts = command.split(/\s+/);
   const [exe, ...args] = parts;
   if (!exe) {
     throw new Error(`Invalid skill command: "${command}"`);
   }
+  if (agents.length > 0) {
+    args.push('-a', ...agents);
+  }
+  args.push('--copy', '-y');
+  validateCommand([exe, ...args]);
   execFileSync(exe, args, {
     cwd,
     stdio: 'inherit',
+    shell: true,
   });
 }

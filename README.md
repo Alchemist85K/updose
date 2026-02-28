@@ -65,7 +65,7 @@ npx updose add owner/repo-name --dry-run  # Preview what would be installed with
 4. Installs each file into your project. If a file already exists, the prompt depends on the file type:
    - **Main docs** (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`): **Append** / **Overwrite** / **Skip**
    - **Other files** (rules, commands, agents, etc.): **Overwrite** / **Skip**
-5. If a `skills.json` file exists in the boilerplate, installs each declared skill by running [`npx skills add`](https://skills.sh/) under the hood
+5. If a `skills.json` file exists in the boilerplate, installs each declared skill via [skills.sh](https://skills.sh/). Skills are installed for the selected targets (`-a`), copied into the project (`--copy`), and auto-confirmed (`-y`)
 
 | Option      | Description                                                                                           |
 |--------     |-------------                                                                                          |
@@ -399,7 +399,11 @@ The manifest file that describes your boilerplate.
 
 An optional file that declares external skill dependencies. When a user installs your boilerplate, these skills are automatically installed via [skills.sh](https://skills.sh/).
 
-Each entry in the `skills` array is a command string that is executed directly (e.g., `npx skills add <repo> --skill <name>`).
+Each entry in the `skills` array is a command string (e.g., `npx skills add <repo> --skill <name>`). During installation, updose automatically appends the following flags:
+
+- `-a <agents>` — installs for the selected targets (e.g., `-a claude-code codex gemini-cli`)
+- `--copy` — copies skill files into the project instead of symlinking
+- `-y` — skips confirmation prompts
 
 ```json
 {
@@ -410,9 +414,15 @@ Each entry in the `skills` array is a command string that is executed directly (
 }
 ```
 
+For example, if a user selects Claude and Gemini as targets, the first command above becomes:
+
+```bash
+npx skills add https://github.com/intellectronica/agent-skills --skill context7 -a claude-code gemini-cli --copy -y
+```
+
 | Field      | Description                                                                    |
 |-------     |-------------                                                                   |
-| `skills`   | Array of command strings. Each command is split on whitespace and executed directly (no shell). |
+| `skills`   | Array of command strings. Do not include `-a`, `--copy`, or `-y` flags — they are added automatically. |
 
 Skills are installed into the target's skills directory (e.g., `.claude/skills/`, `.gemini/skills/`).
 

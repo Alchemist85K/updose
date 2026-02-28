@@ -12,6 +12,7 @@ import type { SkillsManifest } from '../core/skills.js';
 import { parseSkills, runSkillInstall } from '../core/skills.js';
 import type { Target } from '../core/targets.js';
 import {
+  getAgentName,
   getSourceDir,
   isMainDoc,
   mapToLocalPath,
@@ -197,7 +198,9 @@ export async function addCommand(
 
     const skillsContent = await fetchSkillsJson(repo);
 
-    if (skillsContent !== null) {
+    if (skillsContent === null) {
+      info('No skills.json found — skipping skills installation.');
+    } else {
       let skillsManifest: SkillsManifest | undefined;
       try {
         skillsManifest = parseSkills(JSON.parse(skillsContent) as unknown);
@@ -209,9 +212,11 @@ export async function addCommand(
         console.log();
         info('Installing skills...\n');
 
+        const agents = selectedTargets.map(getAgentName);
+
         for (const skill of skillsManifest.skills) {
           try {
-            runSkillInstall(skill, cwd);
+            runSkillInstall(skill, cwd, agents);
             success(`Installed skill: ${skill}`);
             skillsInstalled++;
           } catch (err) {

@@ -73,24 +73,103 @@ describe('parseSkills', () => {
 });
 
 describe('runSkillInstall', () => {
-  it('calls execFileSync with split command parts', () => {
+  it('appends agent flags, --copy, and -y to the command', () => {
     const mockExecFileSync = vi.mocked(execFileSync);
     mockExecFileSync.mockReturnValue(Buffer.from(''));
 
     runSkillInstall(
       'npx skills add https://github.com/user/repo --skill review',
       '/path/to/project',
+      ['claude-code'],
     );
 
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'npx',
-      ['skills', 'add', 'https://github.com/user/repo', '--skill', 'review'],
-      { cwd: '/path/to/project', stdio: 'inherit' },
+      [
+        'skills',
+        'add',
+        'https://github.com/user/repo',
+        '--skill',
+        'review',
+        '-a',
+        'claude-code',
+        '--copy',
+        '-y',
+      ],
+      { cwd: '/path/to/project', stdio: 'inherit', shell: true },
     );
   });
 
+  it('appends multiple agents', () => {
+    const mockExecFileSync = vi.mocked(execFileSync);
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+
+    runSkillInstall('npx skills add repo --skill review', '/tmp', [
+      'claude-code',
+      'codex',
+      'gemini-cli',
+    ]);
+
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'npx',
+      [
+        'skills',
+        'add',
+        'repo',
+        '--skill',
+        'review',
+        '-a',
+        'claude-code',
+        'codex',
+        'gemini-cli',
+        '--copy',
+        '-y',
+      ],
+      { cwd: '/tmp', stdio: 'inherit', shell: true },
+    );
+  });
+
+  it('appends --copy and -y even with empty agents', () => {
+    const mockExecFileSync = vi.mocked(execFileSync);
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+
+    runSkillInstall('npx skills add repo --skill review', '/tmp', []);
+
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'npx',
+      ['skills', 'add', 'repo', '--skill', 'review', '--copy', '-y'],
+      { cwd: '/tmp', stdio: 'inherit', shell: true },
+    );
+  });
+
+  it('rejects command with shell metacharacters', () => {
+    expect(() =>
+      runSkillInstall('npx skills add repo; rm -rf /', '/tmp', []),
+    ).toThrow('Unsafe character');
+  });
+
+  it('rejects command with pipe', () => {
+    expect(() =>
+      runSkillInstall('npx skills add repo | cat /etc/passwd', '/tmp', []),
+    ).toThrow('Unsafe character');
+  });
+
+  it('rejects command with backtick', () => {
+    expect(() =>
+      runSkillInstall('npx skills add `whoami`', '/tmp', []),
+    ).toThrow('Unsafe character');
+  });
+
+  it('rejects command with $() substitution', () => {
+    expect(() =>
+      runSkillInstall('npx skills add $(whoami)', '/tmp', []),
+    ).toThrow('Unsafe character');
+  });
+
   it('throws on empty command', () => {
-    expect(() => runSkillInstall('', '/tmp')).toThrow('Invalid skill command');
+    expect(() => runSkillInstall('', '/tmp', [])).toThrow(
+      'Invalid skill command',
+    );
   });
 
   it('propagates errors from execFileSync', () => {
@@ -100,7 +179,9 @@ describe('runSkillInstall', () => {
     });
 
     expect(() =>
-      runSkillInstall('npx skills add repo --skill test', '/tmp'),
+      runSkillInstall('npx skills add repo --skill test', '/tmp', [
+        'claude-code',
+      ]),
     ).toThrow('npx not found');
   });
 });
