@@ -5,6 +5,7 @@ import {
   fetchManifest,
   fetchRepoTree,
   fetchSkillsJson,
+  parseRepoInput,
 } from '../core/github.js';
 import { fileExists, installFile, resolveConflict } from '../core/installer.js';
 import type { Manifest } from '../core/manifest.js';
@@ -65,10 +66,11 @@ interface AddOptions {
 }
 
 export async function addCommand(
-  repo: string,
+  repoInput: string,
   options: AddOptions,
 ): Promise<void> {
   try {
+    const { repo, dir } = parseRepoInput(repoInput);
     const cwd = process.cwd();
     const skipPrompts = options.yes ?? false;
     const dryRun = options.dryRun ?? false;
@@ -77,7 +79,7 @@ export async function addCommand(
     const manifestSpinner = createSpinner('Fetching updose.json...').start();
     let manifest: Manifest;
     try {
-      manifest = await fetchManifest(repo);
+      manifest = await fetchManifest(repo, dir);
       manifestSpinner.success(
         `Found ${manifest.name} by ${manifest.author} (v${manifest.version})`,
       );
@@ -120,7 +122,7 @@ export async function addCommand(
     >();
     for (const target of selectedTargets) {
       const sourceDir = getSourceDir(target);
-      const prefix = `${sourceDir}/`;
+      const prefix = dir ? `${dir}/${sourceDir}/` : `${sourceDir}/`;
       const files = tree.filter((entry) => {
         if (!entry.path.startsWith(prefix)) return false;
         const relativePath = entry.path.slice(prefix.length);
@@ -160,7 +162,7 @@ export async function addCommand(
       }
 
       // Check skills
-      const skillsContent = await fetchSkillsJson(repo);
+      const skillsContent = await fetchSkillsJson(repo, dir);
       if (skillsContent !== null) {
         try {
           const skillsManifest = parseSkills(
@@ -233,7 +235,7 @@ export async function addCommand(
     // 7. Install skills
     let skillsInstalled = 0;
 
-    const skillsContent = await fetchSkillsJson(repo);
+    const skillsContent = await fetchSkillsJson(repo, dir);
 
     if (skillsContent === null) {
       info('No skills.json found — skipping skills installation.');
@@ -295,7 +297,7 @@ export async function addCommand(
     success(`Done! ${summary} installed, ${skipped} skipped.`);
     // Telemetry (best-effort, silent failures)
     if (installed + skillsInstalled > 0) {
-      await recordDownload(repo).catch(() => {});
+      await recordDownload(repo, dir).catch(() => {});
     }
   } catch (err) {
     error(

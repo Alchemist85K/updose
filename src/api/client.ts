@@ -18,6 +18,7 @@ export interface BoilerplateRow {
   downloads: number;
   avg_rating: number;
   rating_count: number;
+  dir: string | null;
 }
 
 export interface SearchFilters {
@@ -48,14 +49,17 @@ export async function searchBoilerplates(
   return (await res.json()) as BoilerplateRow[];
 }
 
-export async function recordDownload(repo: string): Promise<void> {
+export async function recordDownload(
+  repo: string,
+  dir?: string,
+): Promise<void> {
   await fetch(`${API_BASE_URL}/download`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'User-Agent': USER_AGENT,
     },
-    body: JSON.stringify({ repo }),
+    body: JSON.stringify({ repo, dir: dir ?? null }),
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 }
@@ -71,6 +75,7 @@ export async function registerBoilerplate(
     tags?: string[] | undefined;
   },
   githubToken: string,
+  dir?: string,
 ): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/register`, {
     method: 'POST',
@@ -79,7 +84,7 @@ export async function registerBoilerplate(
       Authorization: `Bearer ${githubToken}`,
       'User-Agent': USER_AGENT,
     },
-    body: JSON.stringify({ repo, manifest }),
+    body: JSON.stringify({ repo, manifest, dir: dir ?? null }),
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 

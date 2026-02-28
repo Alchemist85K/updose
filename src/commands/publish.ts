@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import chalk from 'chalk';
@@ -12,18 +13,31 @@ import { createSpinner, info, error as logError } from '../utils/ui.js';
 
 const FETCH_TIMEOUT_MS = 10_000;
 
-export async function publishCommand(): Promise<void> {
+export async function publishCommand(options: { dir?: string }): Promise<void> {
   const cwd = process.cwd();
+  const dir = options.dir;
+  const manifestDir = dir ? join(cwd, dir) : cwd;
+
+  // Step 0: Validate dir exists
+  if (dir && !existsSync(manifestDir)) {
+    logError(`Directory "${dir}" does not exist.`);
+    process.exitCode = 1;
+    return;
+  }
 
   // Step 1: Read and parse updose.json
   let raw: unknown;
   try {
-    const content = await readFile(join(cwd, MANIFEST_FILENAME), 'utf-8');
+    const content = await readFile(
+      join(manifestDir, MANIFEST_FILENAME),
+      'utf-8',
+    );
     raw = JSON.parse(content);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      const location = dir ? `"${dir}"` : 'current directory';
       logError(
-        `No ${MANIFEST_FILENAME} found in current directory. Run \`updose init\` first.`,
+        `No ${MANIFEST_FILENAME} found in ${location}. Run \`updose init\` first.`,
       );
     } else {
       logError(
@@ -62,9 +76,10 @@ export async function publishCommand(): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  if (manifest.name.toLowerCase() !== repoName.toLowerCase()) {
+  const expectedName = dir ? `${repoName}/${dir}` : repoName;
+  if (manifest.name.toLowerCase() !== expectedName.toLowerCase()) {
     logError(
-      `Manifest name "${manifest.name}" does not match repository name "${repoName}".`,
+      `Manifest name "${manifest.name}" does not match expected name "${expectedName}".`,
     );
     process.exitCode = 1;
     return;
@@ -120,6 +135,9 @@ export async function publishCommand(): Promise<void> {
   console.log(`  Name:        ${manifest.name}`);
   console.log(`  Version:     ${manifest.version}`);
   console.log(`  Repository:  ${repo}`);
+  if (dir) {
+    console.log(`  Directory:   ${dir}`);
+  }
   console.log(`  Targets:     ${manifest.targets.join(', ')}`);
   if (manifest.tags?.length) {
     console.log(`  Tags:        ${manifest.tags.join(', ')}`);
@@ -144,10 +162,14 @@ export async function publishCommand(): Promise<void> {
         tags: manifest.tags,
       },
       token,
+      dir,
     );
     spinner.success('Published successfully!');
     console.log();
-    info(`Users can now install with: ${chalk.cyan(`npx updose add ${repo}`)}`);
+    const installPath = dir ? `${repo}/${dir}` : repo;
+    info(
+      `Users can now install with: ${chalk.cyan(`npx updose add ${installPath}`)}`,
+    );
   } catch (err) {
     spinner.fail('Publication failed');
     logError((err as Error).message);

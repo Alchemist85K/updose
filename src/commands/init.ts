@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { mkdir } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import prompts from 'prompts';
 import { fileExists, installFile } from '../core/installer.js';
@@ -131,10 +132,16 @@ function buildFileList(
   return files;
 }
 
-export async function initCommand(): Promise<void> {
+export async function initCommand(options: { dir?: string }): Promise<void> {
   try {
     const cwd = process.cwd();
-    const defaultName = basename(cwd);
+    const dir = options.dir;
+    const baseDir = dir ? join(cwd, dir) : cwd;
+    if (dir) {
+      await mkdir(baseDir, { recursive: true });
+    }
+    const repoName = basename(cwd);
+    const defaultName = dir ? `${repoName}/${dir}` : repoName;
     const gitUser = getGitHubUsername();
 
     info('Scaffolding a new updose boilerplate...\n');
@@ -198,7 +205,7 @@ export async function initCommand(): Promise<void> {
     let skipped = 0;
 
     for (const file of files) {
-      const destPath = join(cwd, file.path);
+      const destPath = join(baseDir, file.path);
       const exists = await fileExists(destPath);
 
       if (exists) {
@@ -228,14 +235,21 @@ export async function initCommand(): Promise<void> {
     success(`Boilerplate scaffolded! (${created} created, ${skipped} skipped)`);
     console.log();
     info('Next steps:');
-    console.log(
-      `  1. Edit your boilerplate files in ${targets.map((t) => `${t}/`).join(', ')}`,
-    );
+    const editDirs = targets.map((t) => (dir ? `${dir}/${t}/` : `${t}/`));
+    console.log(`  1. Edit your boilerplate files in ${editDirs.join(', ')}`);
     console.log('  2. Push to GitHub');
-    console.log('  3. Publish with: npx updose publish');
     console.log(
-      `  4. Others can install with: npx updose add ${author}/${name}`,
+      `  3. Publish with: npx updose publish${dir ? ` --dir ${dir}` : ''}`,
     );
+    if (dir) {
+      console.log(
+        `  4. Others can install with: npx updose add ${author}/${repoName}/${dir}`,
+      );
+    } else {
+      console.log(
+        `  4. Others can install with: npx updose add ${author}/${name}`,
+      );
+    }
   } catch (err) {
     error(
       err instanceof Error

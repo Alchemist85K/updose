@@ -77,6 +77,7 @@ function formatResult(bp: BoilerplateRow): void {
   }
 
   // Repo
-  console.log(`    ${chalk.dim(bp.repo)}`);
+  const repoPath = bp.dir ? `${bp.repo}/${bp.dir}` : bp.repo;
+  console.log(`    ${chalk.dim(repoPath)}`);
   console.log();
 }

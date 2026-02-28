@@ -31,11 +31,13 @@ program
 program
   .command('init')
   .description('Scaffold a new boilerplate repository')
+  .option('--dir <dir>', 'Create boilerplate in a subdirectory')
   .action(initCommand);
 
 program
   .command('publish')
   .description('Publish your boilerplate to the registry')
+  .option('--dir <dir>', 'Publish from a subdirectory')
   .action(publishCommand);
 
 program.command('login').description('Log in to GitHub').action(loginCommand);

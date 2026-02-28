@@ -20,6 +20,25 @@ export interface TreeEntry {
   size?: number;
 }
 
+export interface RepoInput {
+  repo: string;
+  dir: string | undefined;
+}
+
+export function parseRepoInput(input: string): RepoInput {
+  const parts = input.split('/');
+  if (parts.length < 2 || !parts[0] || !parts[1]) {
+    throw new Error(
+      `Invalid repository format: "${input}". Expected "owner/repo" or "owner/repo/dir".`,
+    );
+  }
+  const repo = `${parts[0]}/${parts[1]}`;
+  const raw =
+    parts.length > 2 ? parts.slice(2).join('/').replace(/\/+$/, '') : undefined;
+  const dir = raw || undefined;
+  return { repo, dir };
+}
+
 interface RepoRef {
   owner: string;
   name: string;
@@ -121,11 +140,15 @@ export async function fetchFile(
   return res.text();
 }
 
-export async function fetchManifest(repo: string): Promise<Manifest> {
-  const content = await fetchFile(repo, MANIFEST_FILENAME);
+export async function fetchManifest(
+  repo: string,
+  dir?: string,
+): Promise<Manifest> {
+  const path = dir ? `${dir}/${MANIFEST_FILENAME}` : MANIFEST_FILENAME;
+  const content = await fetchFile(repo, path);
   if (content === null) {
     throw new Error(
-      `No ${MANIFEST_FILENAME} found in ${repo}. Is this an updose boilerplate?`,
+      `No ${MANIFEST_FILENAME} found in ${dir ? `${repo}/${dir}` : repo}. Is this an updose boilerplate?`,
     );
   }
 
@@ -175,6 +198,10 @@ export async function fetchRepoTree(repo: string): Promise<TreeEntry[]> {
   return data.tree.filter((entry) => entry.type === 'blob');
 }
 
-export async function fetchSkillsJson(repo: string): Promise<string | null> {
-  return fetchFile(repo, SKILLS_FILENAME);
+export async function fetchSkillsJson(
+  repo: string,
+  dir?: string,
+): Promise<string | null> {
+  const path = dir ? `${dir}/${SKILLS_FILENAME}` : SKILLS_FILENAME;
+  return fetchFile(repo, path);
 }
