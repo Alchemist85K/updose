@@ -1,8 +1,5 @@
 {
   "skills": [
-    {
-      "repo": "https://github.com/intellectronica/agent-skills",
-      "skill": "context7"
-    }
+    "npx skills add https://github.com/intellectronica/agent-skills --skill context7"
   ]
 }
