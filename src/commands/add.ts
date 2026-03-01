@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { recordDownload } from '../api/client.js';
 import type { TreeEntry } from '../core/github.js';
 import {
@@ -297,7 +298,8 @@ export async function addCommand(
     success(`Done! ${summary} installed, ${skipped} skipped.`);
     // Telemetry (best-effort, silent failures)
     if (installed + skillsInstalled > 0) {
-      await recordDownload(repo, dir).catch(() => {});
+      const projectHash = createHash('sha256').update(cwd).digest('hex');
+      await recordDownload(repo, dir, projectHash).catch(() => {});
     }
   } catch (err) {
     error(

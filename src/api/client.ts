@@ -16,9 +16,12 @@ export interface BoilerplateRow {
   targets: string[];
   readme_url: string | null;
   downloads: number;
-  avg_rating: number;
-  rating_count: number;
   dir: string | null;
+}
+
+export interface SearchResponse {
+  data: BoilerplateRow[];
+  total: number;
 }
 
 export interface SearchFilters {
@@ -30,7 +33,7 @@ export interface SearchFilters {
 export async function searchBoilerplates(
   query?: string | undefined,
   filters?: SearchFilters | undefined,
-): Promise<BoilerplateRow[]> {
+): Promise<SearchResponse> {
   const params = new URLSearchParams();
   if (query) params.set('q', query);
   if (filters?.target) params.set('target', filters.target);
@@ -46,12 +49,13 @@ export async function searchBoilerplates(
     throw new Error(`Search failed: ${res.status} ${res.statusText}`);
   }
 
-  return (await res.json()) as BoilerplateRow[];
+  return (await res.json()) as SearchResponse;
 }
 
 export async function recordDownload(
   repo: string,
   dir?: string,
+  projectHash?: string,
 ): Promise<void> {
   await fetch(`${API_BASE_URL}/download`, {
     method: 'POST',
@@ -59,7 +63,11 @@ export async function recordDownload(
       'Content-Type': 'application/json',
       'User-Agent': USER_AGENT,
     },
-    body: JSON.stringify({ repo, dir: dir ?? null }),
+    body: JSON.stringify({
+      repo,
+      dir: dir ?? null,
+      ...(projectHash ? { project_hash: projectHash } : {}),
+    }),
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 }

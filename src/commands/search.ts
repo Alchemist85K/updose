@@ -14,34 +14,40 @@ export async function searchCommand(
   options: SearchOptions,
 ): Promise<void> {
   try {
-    if (!query && !options.target && !options.tag && !options.author) {
-      error(
-        'Please provide a search query or at least one filter (--target, --tag, --author).',
-      );
-      process.exitCode = 1;
-      return;
-    }
-
     const filters: SearchFilters = {};
     if (options.target) filters.target = options.target;
     if (options.tag) filters.tag = options.tag;
     if (options.author) filters.author = options.author;
 
-    const results = await searchBoilerplates(query, filters);
+    const hasParams = !!(
+      query ||
+      filters.target ||
+      filters.tag ||
+      filters.author
+    );
+    const label = query
+      ? `"${query}"`
+      : hasParams
+        ? 'the given filters'
+        : 'popular boilerplates';
 
-    const label = query ? `"${query}"` : 'the given filters';
+    const response = await searchBoilerplates(query, filters);
 
-    if (results.length === 0) {
+    if (response.data.length === 0) {
       info(`No boilerplates found for ${label}`);
       return;
     }
 
     console.log();
-    info(`Found ${results.length} result(s) for ${label}:\n`);
+    info(`Found ${response.total} result(s) for ${label}:\n`);
 
-    for (const bp of results) {
+    for (const bp of response.data) {
       formatResult(bp);
     }
+
+    console.log(
+      chalk.dim(`  Browse more results and details at https://updose.dev/`),
+    );
   } catch (err) {
     error(
       err instanceof Error
@@ -62,14 +68,10 @@ function formatResult(bp: BoilerplateRow): void {
     console.log(`    ${bp.description}`);
   }
 
-  // Stats: rating, downloads, targets
-  const rating =
-    bp.avg_rating > 0
-      ? `${chalk.yellow('\u2605')} ${bp.avg_rating}${bp.rating_count > 0 ? chalk.dim(` (${bp.rating_count})`) : ''}`
-      : chalk.dim('\u2605 -');
+  // Stats: downloads, targets
   const downloads = `${chalk.green('\u2193')} ${bp.downloads.toLocaleString()}`;
   const targets = chalk.cyan(bp.targets.join(', '));
-  console.log(`    ${rating}  ${downloads}  ${targets}`);
+  console.log(`    ${downloads}  ${targets}`);
 
   // Tags
   if (bp.tags.length > 0) {

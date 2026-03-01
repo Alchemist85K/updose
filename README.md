@@ -130,9 +130,9 @@ npx updose search --author james --target claude      # james's Claude boilerpla
 npx updose search --tag typescript --target codex     # TypeScript boilerplates for Codex
 ```
 
-At least one of the query or filter options must be provided. Running `npx updose search` with no arguments will show an error.
+Running `npx updose search` with no arguments returns popular boilerplates.
 
-Results display the boilerplate name, version, author, description, rating, download count, supported targets, and tags.
+Results display the boilerplate name, version, author, description, download count, supported targets, and tags.
 
 | Option              | Description                                                 |
 |--------             |-------------                                                |
