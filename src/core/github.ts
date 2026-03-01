@@ -85,46 +85,16 @@ function handleHttpError(res: Response): void {
   }
 }
 
-const branchCache = new Map<string, string>();
-
-async function getDefaultBranch(repo: string): Promise<string> {
-  const cached = branchCache.get(repo);
-  if (cached) return cached;
-
-  const { owner, name } = parseRepo(repo);
-  const res = await fetch(`${GITHUB_API_URL}/repos/${owner}/${name}`, {
-    headers: {
-      Accept: GITHUB_ACCEPT_HEADER,
-      'User-Agent': USER_AGENT,
-      ...getAuthHeaders(),
-    },
-    signal: createSignal(),
-  });
-
-  if (res.status === 404) {
-    throw new Error(`Repository not found: ${repo}`);
-  }
-  handleHttpError(res);
-  if (!res.ok) {
-    throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
-  }
-
-  const data = (await res.json()) as { default_branch: string };
-  branchCache.set(repo, data.default_branch);
-  return data.default_branch;
-}
-
 export async function fetchFile(
   repo: string,
   path: string,
 ): Promise<string | null> {
   const { owner, name } = parseRepo(repo);
-  const branch = await getDefaultBranch(repo);
   const encodedPath = path
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
-  const url = `${GITHUB_RAW}/${owner}/${name}/${branch}/${encodedPath}`;
+  const url = `${GITHUB_RAW}/${owner}/${name}/HEAD/${encodedPath}`;
 
   const res = await fetch(url, {
     headers: { 'User-Agent': USER_AGENT, ...getAuthHeaders() },
@@ -164,8 +134,7 @@ export async function fetchManifest(
 
 export async function fetchRepoTree(repo: string): Promise<TreeEntry[]> {
   const { owner, name } = parseRepo(repo);
-  const branch = await getDefaultBranch(repo);
-  const url = `${GITHUB_API_URL}/repos/${owner}/${name}/git/trees/${branch}?recursive=1`;
+  const url = `${GITHUB_API_URL}/repos/${owner}/${name}/git/trees/HEAD?recursive=1`;
 
   const res = await fetch(url, {
     headers: {
