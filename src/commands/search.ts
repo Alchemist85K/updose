@@ -46,7 +46,7 @@ export async function searchCommand(
     }
 
     console.log(
-      chalk.dim(`  Browse more results and details at https://updose.dev/`),
+      `  Browse more results and details at ${chalk.hex('#d4a574').underline('https://updose.dev')}`,
     );
   } catch (err) {
     error(
