@@ -33,6 +33,7 @@ npx updose <command>
     - [Example: Multi-Target Boilerplate](#example-multi-target-boilerplate)
     - [Monorepo Support](#monorepo-support)
   - [Publishing](#publishing)
+  - [Privacy Policy](#privacy-policy)
   - [License](#license)
 
 ## Quick Start
@@ -663,6 +664,24 @@ npx updose add your-username/my-boilerplate
 # Monorepo boilerplate
 npx updose add your-username/my-monorepo/nextjs
 ```
+
+## Privacy Policy
+
+updose uses GitHub OAuth solely to identify authors when publishing boilerplates.
+
+**What we collect:**
+- GitHub username (via OAuth)
+- Boilerplate metadata when publishing (name, version, targets, tags, description)
+
+**What we store locally:**
+- GitHub token and username at `~/.updose/auth.json` (never sent to updose servers)
+
+**What we don't do:**
+- Sell or share personal information with third parties
+
+**Third-party services:** Supabase (database), Vercel (hosting)
+
+To request data deletion, contact [email](mailto:beomjunk.dev@gmail.com).
 
 ## License
 
