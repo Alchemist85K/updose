@@ -237,7 +237,7 @@ export async function initCommand(options: { dir?: string }): Promise<void> {
     info('Next steps:');
     const editDirs = targets.map((t) => (dir ? `${dir}/${t}/` : `${t}/`));
     console.log(`  1. Edit your boilerplate files in ${editDirs.join(', ')}`);
-    console.log('  2. Push to GitHub');
+    console.log('  2. Push to a public GitHub repository');
     console.log(
       `  3. Publish with: npx updose publish${dir ? ` --dir ${dir}` : ''}`,
     );

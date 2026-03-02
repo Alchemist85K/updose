@@ -249,7 +249,7 @@ After scaffolding, follow the next steps printed by the command:
 
 ### `updose publish`
 
-Publish your boilerplate to the marketplace so others can find and install it.
+Publish your boilerplate to the marketplace so others can find and install it. The repository must be **public** — private repositories cannot be published because users need to clone the repository when installing boilerplates.
 
 ```bash
 npx updose publish                   # Publish from repository root
@@ -302,6 +302,7 @@ Publishing:
 **Prerequisites:**
 
 - A valid `updose.json` in the current directory or specified subdirectory (run `updose init` to create one)
+- A **public** GitHub repository — private repositories cannot be published
 - A GitHub remote (`origin`) configured and pushed to GitHub
 - GitHub authentication (handled automatically if not already logged in)
 

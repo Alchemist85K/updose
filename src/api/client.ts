@@ -3,6 +3,24 @@ import { USER_AGENT } from '../constants.js';
 const DEFAULT_API_URL = 'https://tnjnfvbcdcucqdptbjoo.supabase.co/functions/v1';
 const API_BASE_URL = process.env.UPDOSE_API_URL ?? DEFAULT_API_URL;
 const FETCH_TIMEOUT_MS = 10_000;
+const MAX_RETRIES = 1;
+
+async function fetchWithRetry(
+  input: string,
+  init: RequestInit,
+): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetch(input, {
+        ...init,
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.name === 'TimeoutError';
+      if (!isTimeout || attempt >= MAX_RETRIES) throw err;
+    }
+  }
+}
 
 export interface BoilerplateRow {
   id: number;
@@ -40,10 +58,12 @@ export async function searchBoilerplates(
   if (filters?.tag) params.set('tag', filters.tag);
   if (filters?.author) params.set('author', filters.author);
 
-  const res = await fetch(`${API_BASE_URL}/search?${params.toString()}`, {
-    headers: { 'User-Agent': USER_AGENT },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
+  const res = await fetchWithRetry(
+    `${API_BASE_URL}/search?${params.toString()}`,
+    {
+      headers: { 'User-Agent': USER_AGENT },
+    },
+  );
 
   if (!res.ok) {
     throw new Error(`Search failed: ${res.status} ${res.statusText}`);
@@ -57,7 +77,7 @@ export async function recordDownload(
   dir?: string,
   projectHash?: string,
 ): Promise<void> {
-  await fetch(`${API_BASE_URL}/download`, {
+  await fetchWithRetry(`${API_BASE_URL}/download`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -68,7 +88,6 @@ export async function recordDownload(
       dir: dir ?? null,
       ...(projectHash ? { project_hash: projectHash } : {}),
     }),
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 }
 
@@ -85,7 +104,7 @@ export async function registerBoilerplate(
   githubToken: string,
   dir?: string,
 ): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/register`, {
+  const res = await fetchWithRetry(`${API_BASE_URL}/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -93,7 +112,6 @@ export async function registerBoilerplate(
       'User-Agent': USER_AGENT,
     },
     body: JSON.stringify({ repo, manifest, dir: dir ?? null }),
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
 
   if (!res.ok) {
