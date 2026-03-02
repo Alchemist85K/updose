@@ -1,0 +1,23 @@
+name: Update Sponsors
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  update-sponsors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: JamesIves/github-sponsors-readme-action@v1
+        with:
+          token: ${{ secrets.SPONSORS_TOKEN }}
+          file: README.md
+          marker: sponsors
+          minimum: 5
+          template: |
+            <a href="https://github.com/{{{ login }}}">
+              <img src="https://github.com/{{{ login }}}.png" width="60" style="border-radius: 50%;" alt="{{{ login }}}" />
+            </a>

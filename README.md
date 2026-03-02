@@ -35,6 +35,7 @@ npx updose <command>
   - [Publishing](#publishing)
   - [Privacy Policy](#privacy-policy)
   - [License](#license)
+  - [Sponsors](#sponsors)
 
 ## Quick Start
 
@@ -686,3 +687,7 @@ To request data deletion, contact [email](mailto:beomjunk.dev@gmail.com).
 ## License
 
 MIT
+
+## Sponsors
+
+<!-- sponsors --><!-- sponsors -->
