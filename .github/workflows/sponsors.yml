@@ -21,3 +21,7 @@ jobs:
             <a href="https://github.com/{{{ login }}}">
               <img src="https://github.com/{{{ login }}}.png" width="60" style="border-radius: 50%;" alt="{{{ login }}}" />
             </a>
+
+      - uses: gautamkrishnar/keepalive-workflow@v2
+        with:
+          time_elapsed: 50
