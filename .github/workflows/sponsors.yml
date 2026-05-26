@@ -8,8 +8,11 @@ on:
 jobs:
   update-sponsors:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: JamesIves/github-sponsors-readme-action@v1
         with:
